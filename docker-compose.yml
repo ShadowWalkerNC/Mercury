@@ -1,0 +1,32 @@
+version: '3.9'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    ports:
+      - '4000:4000'
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - CONTROL_SECRET=${CONTROL_SECRET}
+      - PORT=4000
+      - HOST=0.0.0.0
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - DB_PATH=/data/mercury.db
+    volumes:
+      - mercury_data:/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    ports:
+      - '5173:80'
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  mercury_data:
