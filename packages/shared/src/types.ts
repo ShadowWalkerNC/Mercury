@@ -64,6 +64,16 @@ export interface Message {
   author_avatar?: string | null;
 }
 
+export interface Reaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+  // Joined from users table
+  username?: string;
+}
+
 export interface Invite {
   code: string;
   space_id: string;

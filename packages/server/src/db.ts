@@ -19,7 +19,7 @@ db.pragma('foreign_keys = ON');
 db.pragma('synchronous = NORMAL');
 
 // ─── Migration helper ─────────────────────────────────────────────────────────
-// Additive only. Swallows duplicate-column errors and duplicate-index errors,
+// Additive only. Swallows duplicate-column and already-exists errors,
 // throws on everything else.
 function migrate(sql: string): void {
   try {
@@ -107,6 +107,29 @@ migrate(`
 `);
 
 migrate(`
+  CREATE TABLE IF NOT EXISTS reactions (
+    id         TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    user_id    TEXT NOT NULL REFERENCES users(id),
+    emoji      TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (message_id, user_id, emoji)
+  );
+`);
+
+migrate(`
+  CREATE TABLE IF NOT EXISTS attachments (
+    id         TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    url        TEXT NOT NULL,
+    filename   TEXT NOT NULL,
+    size       INTEGER NOT NULL,
+    mime_type  TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+migrate(`
   CREATE TABLE IF NOT EXISTS invites (
     code       TEXT PRIMARY KEY,
     space_id   TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
@@ -121,10 +144,11 @@ migrate(`
 // ─── Performance indexes ──────────────────────────────────────────────────────
 // Added M-023. migrate() silences 'already exists' so these are safe to re-run.
 
-migrate(`CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, id DESC);`);
-migrate(`CREATE INDEX IF NOT EXISTS idx_members_space    ON members(space_id);`);
-migrate(`CREATE INDEX IF NOT EXISTS idx_members_user     ON members(user_id);`);
-migrate(`CREATE INDEX IF NOT EXISTS idx_sessions_user    ON sessions(user_id);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_messages_channel  ON messages(channel_id, id DESC);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_members_space      ON members(space_id);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_members_user       ON members(user_id);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_sessions_user      ON sessions(user_id);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_reactions_message  ON reactions(message_id);`);
 
 // ─── Schema version ───────────────────────────────────────────────────────────
 
