@@ -76,17 +76,25 @@ export function initGateway(server: Server): void {
           return;
         }
 
-        // Set presence online
         db.prepare("UPDATE users SET status = 'online' WHERE id = ?").run(userId);
 
-        // Subscribe to all channels in all spaces the user is a member of
-        const channels = db.prepare(`
+        // Subscribe to space channels
+        const spaceChannels = db.prepare(`
           SELECT c.id FROM channels c
           INNER JOIN members m ON m.space_id = c.space_id
           WHERE m.user_id = ?
         `).all(userId) as { id: string }[];
 
-        const channelIds = channels.map(c => c.id);
+        // Subscribe to DM channels
+        const dmChannels = db.prepare(`
+          SELECT channel_id AS id FROM dm_members WHERE user_id = ?
+        `).all(userId) as { id: string }[];
+
+        const channelIds = [
+          ...spaceChannels.map(c => c.id),
+          ...dmChannels.map(c => c.id),
+        ];
+
         subscribeToChannels(userId, channelIds);
         registerSocket(userId, w);
 
@@ -101,7 +109,6 @@ export function initGateway(server: Server): void {
         return;
       }
 
-      // All ops below require identification
       if (!identified) {
         send({ op: WSOp.INVALID_SESSION, d: { reason: 'Not identified' } });
         return;
@@ -139,7 +146,6 @@ export function initGateway(server: Server): void {
       clearTimeout(identifyTimer);
       if (w.userId) {
         unregisterSocket(w.userId, w);
-        // Only set offline if no other sockets remain for this user
         if (!userSockets.has(w.userId)) {
           db.prepare("UPDATE users SET status = 'offline' WHERE id = ?").run(w.userId);
           unsubscribeAll(w.userId);

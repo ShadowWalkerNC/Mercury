@@ -13,6 +13,7 @@ import { messagesRouter } from './routes/messages.js';
 import { reactionsRouter } from './routes/reactions.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { searchRouter } from './routes/search.js';
+import { dmRouter } from './routes/dm.js';
 
 export function buildApp(): Express {
   const app = express();
@@ -39,6 +40,7 @@ export function buildApp(): Express {
   app.use('/api/v1/channels/:channelId/messages/:msgId/reactions',     reactionsRouter);
   app.use('/api/v1/upload',                                            uploadsRouter);
   app.use('/api/v1/search',                                            searchRouter);
+  app.use('/api/v1/dm',                                                dmRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });
