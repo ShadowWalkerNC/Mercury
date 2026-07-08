@@ -120,7 +120,7 @@ migrate(`
 migrate(`
   CREATE TABLE IF NOT EXISTS attachments (
     id         TEXT PRIMARY KEY,
-    message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    message_id TEXT REFERENCES messages(id) ON DELETE CASCADE,
     url        TEXT NOT NULL,
     filename   TEXT NOT NULL,
     size       INTEGER NOT NULL,
@@ -141,9 +141,53 @@ migrate(`
   );
 `);
 
-// ─── Performance indexes ──────────────────────────────────────────────────────
-// Added M-023. migrate() silences 'already exists' so these are safe to re-run.
+// ─── Full-text search (FTS5) ─────────────────────────────────────────────────────
+//
+// messages_fts shadows the messages table for tokenised search.
+// content= keeps the FTS index lean — only the message_id is stored
+// in the FTS table itself; the full content is retrieved from messages.
+// content_rowid= maps FTS rowids to messages.rowid for the join.
+//
+// Three triggers keep the FTS index in sync automatically:
+//   messages_ai  — after INSERT  → add to FTS
+//   messages_ad  — after DELETE  → remove from FTS
+//   messages_au  — after UPDATE  → remove old, add new
 
+migrate(`
+  CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts
+  USING fts5(
+    content,
+    content=messages,
+    content_rowid=rowid,
+    tokenize='unicode61 remove_diacritics 2'
+  );
+`);
+
+migrate(`
+  CREATE TRIGGER IF NOT EXISTS messages_ai
+  AFTER INSERT ON messages BEGIN
+    INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
+  END;
+`);
+
+migrate(`
+  CREATE TRIGGER IF NOT EXISTS messages_ad
+  AFTER DELETE ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, content)
+    VALUES ('delete', old.rowid, old.content);
+  END;
+`);
+
+migrate(`
+  CREATE TRIGGER IF NOT EXISTS messages_au
+  AFTER UPDATE ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, content)
+    VALUES ('delete', old.rowid, old.content);
+    INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
+  END;
+`);
+
+// ─── Performance indexes ──────────────────────────────────────────────────────
 migrate(`CREATE INDEX IF NOT EXISTS idx_messages_channel  ON messages(channel_id, id DESC);`);
 migrate(`CREATE INDEX IF NOT EXISTS idx_members_space      ON members(space_id);`);
 migrate(`CREATE INDEX IF NOT EXISTS idx_members_user       ON members(user_id);`);
@@ -151,8 +195,6 @@ migrate(`CREATE INDEX IF NOT EXISTS idx_sessions_user      ON sessions(user_id);
 migrate(`CREATE INDEX IF NOT EXISTS idx_reactions_message  ON reactions(message_id);`);
 
 // ─── Schema version ───────────────────────────────────────────────────────────
-
-db.prepare(`INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('version', '1')`)
-  .run();
+db.prepare(`INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('version', '1')`).run();
 
 console.log(`[db] Connected to ${DB_PATH} (WAL mode)`);
