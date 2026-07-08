@@ -11,6 +11,7 @@ import {
 import type { WSPayload, IdentifyPayload, ReadyPayload } from '@mercury/shared';
 import { logger } from '../utils/logger.js';
 import {
+  userSockets,
   registerSocket,
   unregisterSocket,
   subscribeToChannels,

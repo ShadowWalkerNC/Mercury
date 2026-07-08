@@ -19,13 +19,15 @@ db.pragma('foreign_keys = ON');
 db.pragma('synchronous = NORMAL');
 
 // ─── Migration helper ─────────────────────────────────────────────────────────
-// Additive only. Swallows duplicate-column errors, throws on everything else.
+// Additive only. Swallows duplicate-column errors and duplicate-index errors,
+// throws on everything else.
 function migrate(sql: string): void {
   try {
     db.exec(sql);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('duplicate column')) return;
+    if (msg.includes('already exists')) return;
     throw err;
   }
 }
@@ -74,7 +76,7 @@ migrate(`
 migrate(`
   CREATE TABLE IF NOT EXISTS channels (
     id         TEXT PRIMARY KEY,
-    space_id   TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+    space_id   TEXT REFERENCES spaces(id) ON DELETE CASCADE,
     name       TEXT NOT NULL,
     type       TEXT NOT NULL DEFAULT 'text',
     position   INTEGER NOT NULL DEFAULT 0,
@@ -115,6 +117,16 @@ migrate(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// ─── Performance indexes ──────────────────────────────────────────────────────
+// Added M-023. migrate() silences 'already exists' so these are safe to re-run.
+
+migrate(`CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, id DESC);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_members_space    ON members(space_id);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_members_user     ON members(user_id);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_sessions_user    ON sessions(user_id);`);
+
+// ─── Schema version ───────────────────────────────────────────────────────────
 
 db.prepare(`INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('version', '1')`)
   .run();
