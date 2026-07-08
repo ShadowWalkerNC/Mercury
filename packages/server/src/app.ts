@@ -14,6 +14,7 @@ import { reactionsRouter } from './routes/reactions.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { searchRouter } from './routes/search.js';
 import { dmRouter } from './routes/dm.js';
+import { livekitRouter } from './routes/livekit.js';
 
 export function buildApp(): Express {
   const app = express();
@@ -41,6 +42,7 @@ export function buildApp(): Express {
   app.use('/api/v1/upload',                                            uploadsRouter);
   app.use('/api/v1/search',                                            searchRouter);
   app.use('/api/v1/dm',                                                dmRouter);
+  app.use('/api/v1/livekit',                                           livekitRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });
