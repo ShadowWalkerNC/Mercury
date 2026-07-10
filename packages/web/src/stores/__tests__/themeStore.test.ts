@@ -1,45 +1,29 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-// Mock DOM before importing store
-const mockSetAttr   = vi.fn();
-const mockRemoveAttr = vi.fn();
-vi.stubGlobal('document', {
-  documentElement: { setAttribute: mockSetAttr, removeAttribute: mockRemoveAttr },
-});
-
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useThemeStore } from '../themeStore';
 
 beforeEach(() => {
-  mockSetAttr.mockClear();
-  mockRemoveAttr.mockClear();
-  useThemeStore.setState({ theme: 'dark' });
+  useThemeStore.setState({ auroraEnabled: true });
 });
 
 describe('themeStore', () => {
-  it('defaults to dark theme', () => {
-    expect(useThemeStore.getState().theme).toBe('dark');
+  it('auroraEnabled defaults to true', () => {
+    expect(useThemeStore.getState().auroraEnabled).toBe(true);
   });
 
-  it('toggle switches dark → light and sets attribute', () => {
-    useThemeStore.getState().toggle();
-    expect(useThemeStore.getState().theme).toBe('light');
-    expect(mockSetAttr).toHaveBeenCalledWith('data-theme', 'light');
+  it('toggleAurora turns aurora off', () => {
+    useThemeStore.getState().toggleAurora();
+    expect(useThemeStore.getState().auroraEnabled).toBe(false);
   });
 
-  it('toggle switches light → dark and removes attribute', () => {
-    useThemeStore.setState({ theme: 'light' });
-    useThemeStore.getState().toggle();
-    expect(useThemeStore.getState().theme).toBe('dark');
-    expect(mockRemoveAttr).toHaveBeenCalledWith('data-theme');
+  it('toggleAurora turns aurora back on', () => {
+    useThemeStore.getState().toggleAurora();
+    useThemeStore.getState().toggleAurora();
+    expect(useThemeStore.getState().auroraEnabled).toBe(true);
   });
 
-  it('set(light) applies attribute', () => {
-    useThemeStore.getState().set('light');
-    expect(mockSetAttr).toHaveBeenCalledWith('data-theme', 'light');
-  });
-
-  it('set(dark) removes attribute', () => {
-    useThemeStore.getState().set('dark');
-    expect(mockRemoveAttr).toHaveBeenCalledWith('data-theme');
+  it('no light/dark theme toggle exists', () => {
+    // Command Stream is dark-only — no theme field should be present
+    expect((useThemeStore.getState() as any).theme).toBeUndefined();
+    expect((useThemeStore.getState() as any).toggleTheme).toBeUndefined();
   });
 });
