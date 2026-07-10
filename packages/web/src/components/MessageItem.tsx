@@ -1,18 +1,13 @@
 /**
- * MessageItem — single message row with hover toolbar + right-click context menu.
- *
- * Shows:
- *   - Avatar / initial fallback
- *   - Author name + timestamp
- *   - Message body (or inline edit form when editing)
- *   - Emoji reactions strip (M-049)
- *   - On hover: quick-action bar (edit pencil, delete trash — own msgs only)
- *   - Right-click: MessageContextMenu
+ * MessageItem — single message row.
+ * M-047: context menu, hover toolbar, inline edit
+ * M-049: emoji reaction bar
  */
 import { useState, useRef, type FormEvent } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { MessageContextMenu, type MessageContextAction } from './MessageContextMenu';
+import { ReactionBar, type Reaction } from './ReactionBar';
 
 export interface Message {
   id:         string;
@@ -21,13 +16,14 @@ export interface Message {
   content:    string;
   created_at: string;
   edited_at:  string | null;
+  reactions?: Reaction[];
 }
 
 interface Props {
-  message:    Message;
-  spaceRole:  'owner' | 'admin' | 'member';
-  onDeleted:  (id: string) => void;
-  onEdited:   (updated: Message) => void;
+  message:   Message;
+  spaceRole: 'owner' | 'admin' | 'member';
+  onDeleted: (id: string) => void;
+  onEdited:  (updated: Message) => void;
 }
 
 export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) {
@@ -35,24 +31,21 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
   const isMine    = me?.id === message.author_id;
   const canDelete = isMine || spaceRole === 'owner' || spaceRole === 'admin';
 
-  const [hovered,  setHovered]  = useState(false);
-  const [editing,  setEditing]  = useState(false);
-  const [editVal,  setEditVal]  = useState(message.content);
-  const [editBusy, setEditBusy] = useState(false);
-  const [ctx, setCtx]           = useState<{ x: number; y: number } | null>(null);
-  const editRef                 = useRef<HTMLTextAreaElement>(null);
+  const [hovered,   setHovered]   = useState(false);
+  const [editing,   setEditing]   = useState(false);
+  const [editVal,   setEditVal]   = useState(message.content);
+  const [editBusy,  setEditBusy]  = useState(false);
+  const [reactions, setReactions] = useState<Reaction[]>(message.reactions ?? []);
+  const [ctx,       setCtx]       = useState<{ x: number; y: number } | null>(null);
+  const editRef                   = useRef<HTMLTextAreaElement>(null);
 
-  // ─ Derived
   const name      = message.author.display_name ?? message.author.username;
   const initial   = name[0]?.toUpperCase() ?? '?';
   const timestamp = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // ─ Actions
   async function handleDelete() {
-    try {
-      await api.delete(`/api/v1/messages/${message.id}`);
-      onDeleted(message.id);
-    } catch (e) { console.error('Delete failed', e); }
+    try { await api.delete(`/api/v1/messages/${message.id}`); onDeleted(message.id); }
+    catch (e) { console.error('Delete failed', e); }
   }
 
   async function handleEditSubmit(e: FormEvent) {
@@ -61,19 +54,16 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
     setEditBusy(true);
     try {
       const updated = await api.patch<Message>(`/api/v1/messages/${message.id}`, { content: editVal.trim() });
-      onEdited(updated);
-      setEditing(false);
+      onEdited(updated); setEditing(false);
     } catch (err) { console.error('Edit failed', err); }
     finally { setEditBusy(false); }
   }
 
   function startEdit() {
-    setEditVal(message.content);
-    setEditing(true);
+    setEditVal(message.content); setEditing(true);
     setTimeout(() => editRef.current?.focus(), 0);
   }
 
-  // ─ Context menu actions
   const ctxActions: MessageContextAction[] = [
     { label: 'Copy Text',      onClick: () => navigator.clipboard.writeText(message.content) },
     ...(isMine    ? [{ label: 'Edit Message',   onClick: startEdit }] : []),
@@ -82,15 +72,11 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
 
   return (
     <div
-      style={{
-        ...css.row,
-        background: hovered ? 'var(--bg-hover)' : 'transparent',
-      }}
+      style={{ ...css.row, background: hovered ? 'var(--bg-hover)' : 'transparent' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY }); }}
     >
-      {/* Avatar */}
       <div style={css.avatarWrap}>
         <div style={css.avatar}>
           {message.author.avatar
@@ -99,7 +85,6 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
         </div>
       </div>
 
-      {/* Body */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={css.meta}>
           <span style={css.authorName}>{name}</span>
@@ -110,12 +95,13 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
         {editing ? (
           <form onSubmit={handleEditSubmit} style={{ marginTop: 4 }}>
             <textarea
-              ref={editRef}
-              value={editVal}
+              ref={editRef} value={editVal}
               onChange={e => setEditVal(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSubmit(e as never); } }}
-              rows={2}
-              style={css.editArea}
+              onKeyDown={e => {
+                if (e.key === 'Escape') setEditing(false);
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSubmit(e as never); }
+              }}
+              rows={2} style={css.editArea}
             />
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
               <button type="submit" disabled={editBusy} style={css.editSave}>{editBusy ? 'Saving…' : 'Save'}</button>
@@ -126,27 +112,23 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
         ) : (
           <p style={css.content}>{message.content}</p>
         )}
+
+        <ReactionBar
+          messageId={message.id}
+          reactions={reactions}
+          onToggle={(_, next) => setReactions(next)}
+        />
       </div>
 
-      {/* Hover toolbar */}
       {hovered && !editing && (
         <div style={css.toolbar}>
-          {isMine && (
-            <button style={css.toolBtn} title="Edit" onClick={startEdit}>&#9998;</button>
-          )}
-          {canDelete && (
-            <button style={{ ...css.toolBtn, color: 'var(--danger)' }} title="Delete" onClick={handleDelete}>&#128465;</button>
-          )}
+          {isMine    && <button style={css.toolBtn} title="Edit"   onClick={startEdit}>&#9998;</button>}
+          {canDelete && <button style={{ ...css.toolBtn, color: 'var(--danger)' }} title="Delete" onClick={handleDelete}>&#128465;</button>}
         </div>
       )}
 
-      {/* Context menu */}
       {ctx && (
-        <MessageContextMenu
-          x={ctx.x} y={ctx.y}
-          actions={ctxActions}
-          onClose={() => setCtx(null)}
-        />
+        <MessageContextMenu x={ctx.x} y={ctx.y} actions={ctxActions} onClose={() => setCtx(null)} />
       )}
     </div>
   );
