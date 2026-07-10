@@ -2,6 +2,7 @@
  * ChatArea — message list + composer for a text channel.
  * M-047: MessageItem with edit/delete/context menu
  * M-049: REACTION_ADD / REACTION_REMOVE WS events
+ * M-050: passes attachment metadata through onSend
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
@@ -12,6 +13,7 @@ import { useSpaceStore } from '@/stores/spaceStore';
 import { MessageItem, type Message } from './MessageItem';
 import { MessageComposer } from './MessageComposer';
 import type { Reaction } from './ReactionBar';
+import type { AttachmentMeta } from './AttachmentRenderer';
 
 interface Props { spaceId: string; channelId: string; }
 
@@ -81,8 +83,11 @@ export function ChatArea({ spaceId, channelId }: Props) {
     return () => offs.forEach(off => off());
   }, [channelId, me?.id]);
 
-  function handleSend(content: string) {
-    api.post(`/api/v1/channels/${channelId}/messages`, { content }).catch(console.error);
+  function handleSend(content: string, attachment?: AttachmentMeta) {
+    api.post(`/api/v1/channels/${channelId}/messages`, {
+      content,
+      ...(attachment ? { attachment } : {}),
+    }).catch(console.error);
   }
 
   const channels = useSpaceStore(s => s.channels[spaceId] ?? []);

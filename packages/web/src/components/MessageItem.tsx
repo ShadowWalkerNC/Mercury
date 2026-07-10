@@ -2,21 +2,24 @@
  * MessageItem — single message row.
  * M-047: context menu, hover toolbar, inline edit
  * M-049: emoji reaction bar
+ * M-050: attachment rendering
  */
 import { useState, useRef, type FormEvent } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { MessageContextMenu, type MessageContextAction } from './MessageContextMenu';
 import { ReactionBar, type Reaction } from './ReactionBar';
+import { AttachmentRenderer, type AttachmentMeta } from './AttachmentRenderer';
 
 export interface Message {
-  id:         string;
-  author_id:  string;
-  author:     { id: string; username: string; display_name: string | null; avatar: string | null };
-  content:    string;
-  created_at: string;
-  edited_at:  string | null;
-  reactions?: Reaction[];
+  id:          string;
+  author_id:   string;
+  author:      { id: string; username: string; display_name: string | null; avatar: string | null };
+  content:     string;
+  created_at:  string;
+  edited_at:   string | null;
+  reactions?:  Reaction[];
+  attachment?: AttachmentMeta;
 }
 
 interface Props {
@@ -110,7 +113,10 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
             </div>
           </form>
         ) : (
-          <p style={css.content}>{message.content}</p>
+          <>
+            {message.content && <p style={css.content}>{message.content}</p>}
+            {message.attachment && <AttachmentRenderer attachment={message.attachment} />}
+          </>
         )}
 
         <ReactionBar
