@@ -1,0 +1,20 @@
+{
+  "_comment": "Conventional commit prefix → changelog section mapping for Mercury.",
+  "sections": [
+    { "prefix": "feat",       "emoji": "✨",  "title": "Features" },
+    { "prefix": "fix",        "emoji": "🐛",  "title": "Bug Fixes" },
+    { "prefix": "perf",       "emoji": "⚡",  "title": "Performance" },
+    { "prefix": "refactor",   "emoji": "🛠",  "title": "Refactoring" },
+    { "prefix": "style",      "emoji": "🎨",  "title": "Styles" },
+    { "prefix": "test",       "emoji": "✅",  "title": "Tests" },
+    { "prefix": "ci",         "emoji": "🔧",  "title": "CI & Tooling" },
+    { "prefix": "chore(deps", "emoji": "📦",  "title": "Dependencies" },
+    { "prefix": "docs",       "emoji": "📚",  "title": "Documentation" },
+    { "prefix": "chore",      "emoji": "🧹",  "title": "Maintenance" }
+  ],
+  "ignore_patterns": [
+    "^chore\\(release\\)",
+    "^Merge",
+    "^Revert"
+  ]
+}

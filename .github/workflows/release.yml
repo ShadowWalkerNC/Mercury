@@ -1,0 +1,209 @@
+name: Release
+
+# ───────────────────────────────────────────────────────────────────
+# Triggered automatically when a semver tag (v*.*.*) is pushed.
+# Use the tag-release.yml workflow_dispatch to create tags safely.
+#
+# Tag format:
+#   v1.2.3          → stable release  (latest channel)
+#   v1.2.3-alpha.1  → pre-release     (prerelease channel)
+#   v1.2.3-beta.2   → pre-release
+#   v1.2.3-rc.1     → pre-release
+# ───────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────
+  validate-tag:
+    name: Validate Tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      version:        ${{ steps.parse.outputs.version }}
+      is_prerelease:  ${{ steps.parse.outputs.is_prerelease }}
+      channel:        ${{ steps.parse.outputs.channel }}
+
+    steps:
+      - name: Parse and validate semver tag
+        id: parse
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "Tag: $TAG"
+
+          # Strip leading 'v'
+          VERSION="${TAG#v}"
+
+          # Validate semver (with optional prerelease suffix)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Tag '$TAG' is not a valid semver tag."
+            exit 1
+          fi
+
+          # Determine prerelease
+          if echo "$VERSION" | grep -qE '-(alpha|beta|rc)\.'; then
+            IS_PRERELEASE=true
+            CHANNEL=prerelease
+          else
+            IS_PRERELEASE=false
+            CHANNEL=latest
+          fi
+
+          echo "version=$VERSION"           >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "channel=$CHANNEL"            >> $GITHUB_OUTPUT
+          echo "✔ version=$VERSION channel=$CHANNEL prerelease=$IS_PRERELEASE"
+
+  # ───────────────────────────────────────────────────────────────────
+  build:
+    name: Build All Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [validate-tag]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history needed for changelog generation
+
+      - uses: pnpm/action-setup@v3
+        with: { version: '${{ env.PNPM_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @mercury/shared build
+
+      - name: Build API
+        run: pnpm --filter @mercury/api build
+        env:
+          NODE_ENV: production
+
+      - name: Build Server
+        run: pnpm --filter @mercury/server build
+        env:
+          NODE_ENV: production
+
+      - name: Build Web (Vite)
+        run: pnpm --filter @mercury/web build
+        env:
+          NODE_ENV: production
+          VITE_APP_VERSION: ${{ needs.validate-tag.outputs.version }}
+
+      - name: Package artifacts
+        run: |
+          tar -czf web-dist.tar.gz    -C packages/web    dist/
+          tar -czf api-dist.tar.gz    -C packages/api    dist/
+          tar -czf server-dist.tar.gz -C packages/server dist/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${GITHUB_REF_NAME}$" | head -1)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found — using full history"
+            LOG_RANGE="HEAD"
+          else
+            echo "Changelog: $PREV_TAG..HEAD"
+            LOG_RANGE="$PREV_TAG..HEAD"
+          fi
+
+          # Build structured changelog from conventional commits
+          {
+            echo "## What's Changed"
+            echo ""
+
+            # Features
+            FEATS=$(git log $LOG_RANGE --pretty=format:"- %s" | grep -E '^- feat' | sed 's/^- feat[^:]*: /- /' || true)
+            if [ -n "$FEATS" ]; then
+              echo "### ✨ Features"
+              echo "$FEATS"
+              echo ""
+            fi
+
+            # Fixes
+            FIXES=$(git log $LOG_RANGE --pretty=format:"- %s" | grep -E '^- fix' | sed 's/^- fix[^:]*: /- /' || true)
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+
+            # Performance
+            PERFS=$(git log $LOG_RANGE --pretty=format:"- %s" | grep -E '^- perf' | sed 's/^- perf[^:]*: /- /' || true)
+            if [ -n "$PERFS" ]; then
+              echo "### ⚡ Performance"
+              echo "$PERFS"
+              echo ""
+            fi
+
+            # CI / Chore (deps)
+            DEPS=$(git log $LOG_RANGE --pretty=format:"- %s" | grep -E '^- (chore\(deps|ci)' | sed 's/^- [^:]*: /- /' || true)
+            if [ -n "$DEPS" ]; then
+              echo "### 📦 Dependencies & CI"
+              echo "$DEPS"
+              echo ""
+            fi
+
+            echo "**Full diff:** https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }}"
+          } > CHANGELOG_FRAGMENT.md
+
+          cat CHANGELOG_FRAGMENT.md
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ github.ref_name }}
+          path: |
+            web-dist.tar.gz
+            api-dist.tar.gz
+            server-dist.tar.gz
+            CHANGELOG_FRAGMENT.md
+          retention-days: 30
+
+  # ───────────────────────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [validate-tag, build]
+    permissions:
+      contents: write  # required to create releases + upload assets
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets-${{ github.ref_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Mercury ${{ github.ref_name }}
+          body_path: CHANGELOG_FRAGMENT.md
+          prerelease: ${{ needs.validate-tag.outputs.is_prerelease == 'true' }}
+          make_latest: ${{ needs.validate-tag.outputs.is_prerelease == 'false' }}
+          files: |
+            web-dist.tar.gz
+            api-dist.tar.gz
+            server-dist.tar.gz
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

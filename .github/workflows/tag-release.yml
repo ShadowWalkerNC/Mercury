@@ -1,0 +1,101 @@
+name: Tag Release
+
+# ───────────────────────────────────────────────────────────────────
+# Manual dispatch only. Creates a semver tag on main and pushes it,
+# which then triggers release.yml automatically.
+#
+# Usage:
+#   Actions → Tag Release → Run workflow
+#   version: 1.0.0   (no leading v)
+#   confirm: yes
+# ───────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (without v prefix, e.g. 1.0.0 or 1.0.0-beta.1)'
+        required: true
+        type: string
+      confirm:
+        description: 'Type "yes" to confirm tagging main and triggering a release'
+        required: true
+        type: string
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  tag:
+    name: Create & Push Tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Safety check
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "yes" ]; then
+            echo "::error::You must type 'yes' in the confirm field to proceed."
+            exit 1
+          fi
+
+      - name: Validate semver input
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Invalid version '$VERSION'. Must be semver without leading v."
+            exit 1
+          fi
+          echo "✔ Version $VERSION is valid semver"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check tag does not already exist
+        run: |
+          TAG="v${{ github.event.inputs.version }}"
+          if git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+            echo "::error::Tag '$TAG' already exists. Bump the version."
+            exit 1
+          fi
+          echo "✔ Tag $TAG does not exist yet"
+
+      - uses: pnpm/action-setup@v3
+        with: { version: '${{ env.PNPM_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bump root package.json version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\\n');
+          "
+          git add package.json
+          git diff --staged --quiet || git commit -m "chore(release): bump version to $VERSION"
+
+      - name: Create and push tag
+        run: |
+          TAG="v${{ github.event.inputs.version }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin main --follow-tags
+          echo "✔ Tagged and pushed $TAG — release.yml will now run automatically"
