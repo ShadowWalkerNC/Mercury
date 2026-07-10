@@ -1,13 +1,15 @@
 /**
- * UserSettingsModal — profile edit + theme toggle + 2FA link.
+ * UserSettingsModal — profile edit + theme toggle + notifications + 2FA.
+ * M-054: notifications toggle row
  */
-import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { ModalShell } from './ModalShell';
 import { Field, ErrorBanner, inputStyle, submitBtn, cancelBtn } from './CreateSpaceModal';
 import { ThemeToggle } from '../ThemeToggle';
 import { useUIStore } from '@/stores/uiStore';
+import { isSupported, currentPermission, subscribe, unsubscribe } from '@/lib/notifications';
 
 export function UserSettingsModal({ onClose }: { onClose: () => void }) {
   const user      = useAuthStore(s => s.user);
@@ -17,10 +19,14 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
   const [displayName,   setDisplayName]   = useState(user?.display_name ?? '');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar ?? null);
   const [avatarFile,    setAvatarFile]    = useState<File | null>(null);
-  const [busy,  setBusy]  = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const fileRef           = useRef<HTMLInputElement>(null);
+  const [busy,   setBusy]   = useState(false);
+  const [error,  setError]  = useState<string | null>(null);
+  const [saved,  setSaved]  = useState(false);
+  const [notifPerm,  setNotifPerm]  = useState<NotificationPermission>('default');
+  const [notifBusy,  setNotifBusy]  = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setNotifPerm(currentPermission()); }, []);
 
   function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -53,8 +59,23 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
     } finally { setBusy(false); }
   }
 
+  async function toggleNotifications() {
+    setNotifBusy(true);
+    try {
+      if (notifPerm === 'granted') {
+        await unsubscribe();
+        setNotifPerm('default');
+      } else {
+        const ok = await subscribe();
+        setNotifPerm(ok ? 'granted' : currentPermission());
+      }
+    } catch (e) { console.error('Notif toggle failed', e); }
+    finally { setNotifBusy(false); }
+  }
+
   const name    = user?.display_name ?? user?.username ?? '?';
   const initial = name[0]?.toUpperCase() ?? '?';
+  const notifSupported = isSupported();
 
   return (
     <ModalShell title="User Settings" onClose={onClose}>
@@ -87,11 +108,41 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
           <input style={{ ...inputStyle, opacity: 0.6 }} value={user?.username ?? ''} disabled />
         </Field>
 
+        {/* Appearance */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Appearance</span>
           <ThemeToggle />
         </div>
 
+        {/* Notifications */}
+        {notifSupported && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Push notifications</div>
+              {notifPerm === 'denied' && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Blocked in browser settings</div>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={notifBusy || notifPerm === 'denied'}
+              onClick={toggleNotifications}
+              style={{
+                ...submitBtn,
+                fontSize: 12,
+                padding: '5px 12px',
+                background: notifPerm === 'granted' ? 'var(--bg-tertiary)' : 'var(--accent)',
+                color: notifPerm === 'granted' ? 'var(--text-secondary)' : '#fff',
+                border: notifPerm === 'granted' ? '1px solid var(--border)' : 'none',
+                opacity: notifBusy || notifPerm === 'denied' ? 0.5 : 1,
+              }}
+            >
+              {notifBusy ? '…' : notifPerm === 'granted' ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        )}
+
+        {/* 2FA */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Two-factor authentication</span>
           <button type="button"
