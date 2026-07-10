@@ -1,12 +1,14 @@
 /**
  * Mercury — Global Base Styles
  * Stage 1: Command Stream foundation.
+ * Stage 6: accessibility.css added as final import.
  * Imports token system, sets canvas, font stack, scrollbar, focus rings.
  */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import './tokens.css';
 @import './aurora.css';
 @import './breakpoints.css';
+@import './accessibility.css';
 
 /* ── Reset ─────────────────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -31,13 +33,13 @@ body {
   line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; /* canvas is fixed; scroll happens inside panels */
+  overflow: hidden;
 }
 
 #root {
   height: 100%;
   position: relative;
-  isolation: isolate; /* new stacking context above aurora layer */
+  isolation: isolate;
 }
 
 /* ── Typography ────────────────────────────────────────────────────────── */
@@ -61,13 +63,8 @@ a {
 }
 a:hover { color: var(--accent); }
 
-/* ── Focus Rings (WCAG 2.4.11) ─────────────────────────────────────────── */
+/* ── Focus Rings (overridden by accessibility.css) ──────────────────────── */
 :focus { outline: none; }
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-xs);
-}
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 button {
@@ -122,7 +119,7 @@ input:focus-visible, textarea:focus-visible {
   color: var(--text-primary);
 }
 
-/* ── Backdrop filter support ────────────────────────────────────────────── */
+/* ── Glass utilities ────────────────────────────────────────────────────── */
 .glass {
   background: var(--glass-base);
   backdrop-filter: blur(20px) saturate(1.4);
@@ -145,14 +142,4 @@ input:focus-visible, textarea:focus-visible {
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
   border: 1px solid var(--border-violet);
   border-radius: var(--radius-nav);
-}
-
-/* ── Reduced Motion ─────────────────────────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  .aurora-field { display: none; }
 }

@@ -1,29 +1,25 @@
 import { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
 import { useUIStore } from '../stores/uiStore';
+import { useThemeStore } from '../stores/themeStore';
 import { AuroraCanvas } from './layout/AuroraCanvas';
 import { CommandBar } from './layout/CommandBar';
 import { SpaceRail } from './layout/SpaceRail';
 import { ContentStream } from './layout/ContentStream';
 import { MobileNav } from './layout/MobileNav';
+import { CommandPalette } from './ui/CommandPalette';
+import { ToastManager } from './ui/ToastManager';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import '../styles/global.css';
 
 /**
  * AppShell — Command Stream layout root.
- *
- * Layer order (z-index):
- *   0  AuroraCanvas   — fixed aurora glow fields (pointer-events: none)
- *   1  Shell body     — flex row filling viewport
- *      ├ SpaceRail    — desktop-only circular icon rail (z-panel)
- *      └ ContentStream— fluid glass card: sidebar + chat + presence
- *  20  CommandBar     — global ⌘K pill pinned top-center
- *  30  MobileNav      — mobile-only bottom tab bar
- *  50+ Modals/toasts  — handled by uiStore portal targets
+ * Stage 6: ToastManager, CommandPalette, ErrorBoundary wired in.
+ * Skip-to-content link added for keyboard/screen-reader users.
  */
 export function AppShell() {
   const openCommandBar = useUIStore(s => s.openCommandBar);
+  const auroraEnabled  = useThemeStore(s => s.auroraEnabled);
 
-  // Global ⌘K shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -37,50 +33,59 @@ export function AppShell() {
 
   return (
     <div style={styles.root}>
-      {/* Layer 0 — aurora background */}
-      <AuroraCanvas />
+      {/* WCAG 2.4.1 skip link */}
+      <a href="#main-content" className="skip-to-content">Skip to content</a>
+
+      {/* Layer 0 — aurora background (respects auroraEnabled + prefers-reduced-motion) */}
+      {auroraEnabled && <AuroraCanvas />}
 
       {/* Layer 1 — app body */}
       <div style={styles.body}>
-        {/* Desktop space icon rail */}
         <SpaceRail />
-
-        {/* Fluid content stream */}
-        <ContentStream />
+        <ErrorBoundary>
+          <ContentStream />
+        </ErrorBoundary>
       </div>
 
-      {/* Layer 20 — global command bar */}
+      {/* Layer 20 — command bar */}
       <CommandBar />
 
       {/* Layer 30 — mobile bottom nav */}
       <MobileNav />
 
-      {/* Portal targets for modals and toasts */}
-      <div id="modal-root" style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal)' as any, pointerEvents: 'none' }} />
-      <div id="toast-root" style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 'var(--z-toast)' as any, pointerEvents: 'none' }} />
+      {/* Overlays — command palette + toasts */}
+      <CommandPalette />
+      <ToastManager />
+
+      {/* Portal targets */}
+      <div
+        id="modal-root"
+        style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal)' as any, pointerEvents: 'none' }}
+      />
+      <div
+        id="toast-root"
+        style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 'var(--z-toast)' as any, pointerEvents: 'none' }}
+      />
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
   root: {
-    position: 'relative',
-    width: '100vw',
-    height: '100dvh',
-    overflow: 'hidden',
+    position:   'relative',
+    width:      '100vw',
+    height:     '100dvh',
+    overflow:   'hidden',
     background: 'var(--canvas)',
-    isolation: 'isolate',
+    isolation:  'isolate',
   },
   body: {
-    position: 'relative',
-    display: 'flex',
+    position:      'relative',
+    display:       'flex',
     flexDirection: 'row',
-    width: '100%',
-    height: '100%',
-    zIndex: 1,
-    // Leave top padding for CommandBar pill
-    paddingTop: 'calc(var(--command-bar-height) + 16px)',
-    // Leave bottom padding on mobile for MobileNav
-    paddingBottom: 0,
+    width:         '100%',
+    height:        '100%',
+    zIndex:        1,
+    paddingTop:    'calc(var(--command-bar-height) + 16px)',
   },
 };

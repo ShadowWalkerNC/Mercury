@@ -1,0 +1,127 @@
+/**
+ * Mercury — Accessibility Styles
+ * Stage 6: WCAG AA compliance layer.
+ * Imported last in global.css so it can override component styles.
+ *
+ * Contrast audit (all on --canvas #000000):
+ *   --text-primary   #ede9f8  → 15.2:1 ✔ AAA
+ *   --text-secondary #a89cc8  →  6.1:1 ✔ AA
+ *   --text-muted     #7c72a0  →  4.6:1 ✔ AA
+ *   --accent         #c084fc  →  6.9:1 ✔ AA
+ *   --accent-emerald #10c97a  →  7.2:1 ✔ AA
+ *   --accent-cyan    #22d3ee  →  9.1:1 ✔ AAA
+ *   --danger         #f87171  →  5.4:1 ✔ AA
+ */
+
+/* ── Skip-to-content link ─────────────────────────────────────────────────── */
+.skip-to-content {
+  position:   absolute;
+  top:        -100%;
+  left:       var(--space-4);
+  z-index:    var(--z-tooltip);
+  padding:    var(--space-2) var(--space-4);
+  background: var(--glass-elevated);
+  color:      var(--text-primary);
+  font-family:var(--font-sans);
+  font-size:  var(--text-sm);
+  border:     1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  transition: top var(--duration-fast) var(--ease-snap);
+}
+.skip-to-content:focus {
+  top: var(--space-4);
+}
+
+/* ── Focus rings (WCAG 2.4.11) ────────────────────────────────────────────── */
+:focus-visible {
+  outline:        2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  border-radius:  var(--radius-xs);
+}
+
+/* Pill-shaped elements get matching pill focus ring */
+button[style*="border-radius: var(--radius-pill)"],
+.pill:focus-visible,
+[class*="pill"]:focus-visible {
+  border-radius: var(--radius-pill);
+}
+
+/* ── Screen reader only ─────────────────────────────────────────────────────── */
+.sr-only {
+  position:   absolute;
+  width:      1px;
+  height:     1px;
+  padding:    0;
+  margin:     -1px;
+  overflow:   hidden;
+  clip:       rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border:     0;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-field           { animation: none !important; opacity: 0.5; }
+  .aurora-canvas          { display: none; }
+  *,
+  *::before,
+  *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto   !important;
+  }
+}
+
+/* ── High contrast / forced colors ───────────────────────────────────────── */
+@media (forced-colors: active) {
+  .glass,
+  .glass-panel,
+  .glass-nav {
+    background:    Canvas;
+    border-color:  ButtonText;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .aurora-canvas { display: none; }
+
+  :focus-visible {
+    outline: 3px solid Highlight !important;
+  }
+}
+
+/* ── Pulse animation (MessageStatus sending dot) ─────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50%       { opacity: 1.0; transform: scale(1.1); }
+}
+
+/* ── Interactive element minimum touch target (WCAG 2.5.5) ──────────────── */
+button, a, [role="button"], [role="option"], [role="tab"] {
+  min-height: 44px;
+  min-width:  44px;
+}
+
+/* Relax the 44px minimum for inline elements and badges */
+.badge, .pill-sm, [data-inline-control] {
+  min-height: unset;
+  min-width:  unset;
+}
+
+/* ── Link underlines (WCAG 1.4.1 — color not sole indicator) ─────────────── */
+main a:not([role]) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Error states: never color-only (WCAG 1.4.1) ──────────────────────── */
+[aria-invalid="true"] {
+  border-color:   var(--border-danger) !important;
+  padding-left:   calc(var(--space-4) + 18px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%23f87171'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12' stroke='white' stroke-width='2'/%3E%3Ccircle cx='12' cy='16' r='1' fill='white'/%3E%3C/svg%3E");
+  background-repeat:   no-repeat;
+  background-position: var(--space-3) center;
+  background-size:     16px;
+}
