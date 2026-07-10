@@ -34,19 +34,25 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
-      NODE_ENV:           production
-      DATABASE_URL:       postgres://${POSTGRES_USER:-mercury}:${POSTGRES_PASSWORD:-mercury}@postgres:5432/${POSTGRES_DB:-mercury}
-      REDIS_URL:          redis://redis:6379
-      JWT_SECRET:         ${JWT_SECRET}
-      VAPID_PUBLIC_KEY:   ${VAPID_PUBLIC_KEY}
-      VAPID_PRIVATE_KEY:  ${VAPID_PRIVATE_KEY}
-      VAPID_SUBJECT:      ${VAPID_SUBJECT:-mailto:admin@example.com}
-      S3_BUCKET:          ${S3_BUCKET}
-      S3_REGION:          ${S3_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID:  ${AWS_ACCESS_KEY_ID}
+      NODE_ENV:              production
+      DATABASE_URL:          postgres://${POSTGRES_USER:-mercury}:${POSTGRES_PASSWORD:-mercury}@postgres:5432/${POSTGRES_DB:-mercury}
+      REDIS_URL:             redis://redis:6379
+      JWT_SECRET:            ${JWT_SECRET}
+      VAPID_PUBLIC_KEY:      ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY:     ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT:         ${VAPID_SUBJECT:-mailto:admin@example.com}
+      S3_BUCKET:             ${S3_BUCKET}
+      S3_REGION:             ${S3_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      PORT:               3000
+      ALLOWED_ORIGINS:       ${ALLOWED_ORIGINS:-}
+      PORT:                  3000
     ports:
       - '3000:3000'
 
@@ -59,7 +65,7 @@ services:
         VITE_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
     restart: unless-stopped
     depends_on:
-      - api
+      api: { condition: service_healthy }
     ports:
       - '80:80'
 
