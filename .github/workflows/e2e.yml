@@ -1,0 +1,85 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER:     mercury
+          POSTGRES_PASSWORD: mercury
+          POSTGRES_DB:       mercury
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: 9 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @mercury/shared build
+
+      - name: Run DB migrations
+        run: pnpm --filter @mercury/api migrate
+        env:
+          DATABASE_URL: postgres://mercury:mercury@localhost:5432/mercury
+
+      - name: Start API
+        run: pnpm --filter @mercury/api start &
+        env:
+          NODE_ENV:          test
+          DATABASE_URL:      postgres://mercury:mercury@localhost:5432/mercury
+          REDIS_URL:         redis://localhost:6379
+          JWT_SECRET:        ci-test-secret-do-not-use-in-prod
+          VAPID_PUBLIC_KEY:  BEl62iUYgUivxIkv69yViEuiBIa40HI80NM4
+          VAPID_PRIVATE_KEY: test
+          VAPID_SUBJECT:     mailto:ci@example.com
+          PORT:              3000
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @mercury/e2e exec playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: pnpm --filter @mercury/e2e test
+        env:
+          BASE_URL: http://localhost:5173
+          CI: true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
