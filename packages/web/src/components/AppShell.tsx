@@ -8,12 +8,15 @@ import { WSOp } from '@mercury/shared';
 import { SpaceSidebar } from './SpaceSidebar';
 import { ChannelSidebar } from './ChannelSidebar';
 import { ChatArea } from './ChatArea';
+import { VoiceArea } from './VoiceArea';
 import { ModalHost } from './modals/ModalHost';
 
 function SpaceLayout() {
   const { spaceId, channelId } = useParams<{ spaceId: string; channelId: string }>();
   const setActiveSpace   = useUIStore(s => s.setActiveSpace);
   const setActiveChannel = useUIStore(s => s.setActiveChannel);
+  const channels         = useSpaceStore(s => spaceId ? (s.channels[spaceId] ?? []) : []);
+  const channel          = channels.find(c => c.id === channelId);
 
   useEffect(() => {
     if (spaceId)   setActiveSpace(spaceId);
@@ -21,13 +24,23 @@ function SpaceLayout() {
   }, [spaceId, channelId]);
 
   if (!spaceId) return null;
+
+  let mainArea: React.ReactNode = (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+      Select a channel
+    </div>
+  );
+
+  if (channelId) {
+    mainArea = channel?.type === 'voice'
+      ? <VoiceArea spaceId={spaceId} channelId={channelId} />
+      : <ChatArea  spaceId={spaceId} channelId={channelId} />;
+  }
+
   return (
     <>
       <ChannelSidebar spaceId={spaceId} />
-      {channelId
-        ? <ChatArea spaceId={spaceId} channelId={channelId} />
-        : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>Select a channel</div>
-      }
+      {mainArea}
     </>
   );
 }
@@ -40,19 +53,9 @@ export function AppShell() {
   useEffect(() => {
     if (!user) return;
     gateway.connect();
-
-    const offReady = gateway.on(WSOp.READY, () => {
-      fetchSpaces();
-    });
-
-    // Subscribe to live space/channel WS events
-    const unsubWS = subscribeWS();
-
-    return () => {
-      offReady();
-      unsubWS();
-      gateway.disconnect();
-    };
+    const offReady = gateway.on(WSOp.READY, () => { fetchSpaces(); });
+    const unsubWS  = subscribeWS();
+    return () => { offReady(); unsubWS(); gateway.disconnect(); };
   }, [user?.id]);
 
   return (
