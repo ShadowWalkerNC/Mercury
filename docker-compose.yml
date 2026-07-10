@@ -1,32 +1,67 @@
 version: '3.9'
 
 services:
-  server:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-mercury}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mercury}
+      POSTGRES_DB:       ${POSTGRES_DB:-mercury}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mercury}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
     build:
       context: .
-      dockerfile: packages/server/Dockerfile
-    ports:
-      - '4000:4000'
-    environment:
-      - JWT_SECRET=${JWT_SECRET}
-      - CONTROL_SECRET=${CONTROL_SECRET}
-      - PORT=4000
-      - HOST=0.0.0.0
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
-      - DB_PATH=/data/mercury.db
-    volumes:
-      - mercury_data:/data
+      dockerfile: packages/api/Dockerfile
     restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    environment:
+      NODE_ENV:           production
+      DATABASE_URL:       postgres://${POSTGRES_USER:-mercury}:${POSTGRES_PASSWORD:-mercury}@postgres:5432/${POSTGRES_DB:-mercury}
+      REDIS_URL:          redis://redis:6379
+      JWT_SECRET:         ${JWT_SECRET}
+      VAPID_PUBLIC_KEY:   ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY:  ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT:      ${VAPID_SUBJECT:-mailto:admin@example.com}
+      S3_BUCKET:          ${S3_BUCKET}
+      S3_REGION:          ${S3_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID:  ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      PORT:               3000
+    ports:
+      - '3000:3000'
 
   web:
     build:
       context: .
       dockerfile: packages/web/Dockerfile
-    ports:
-      - '5173:80'
-    depends_on:
-      - server
+      args:
+        VITE_API_BASE_URL:     ${VITE_API_BASE_URL:-}
+        VITE_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
     restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '80:80'
 
 volumes:
-  mercury_data:
+  pgdata:
