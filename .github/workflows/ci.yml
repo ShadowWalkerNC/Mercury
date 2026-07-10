@@ -116,7 +116,7 @@ jobs:
         env:
           NODE_ENV: test
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: web-coverage-${{ github.run_id }}
@@ -167,7 +167,7 @@ jobs:
           JWT_SECRET:   ci-test-secret
           NODE_ENV:     test
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: api-coverage-${{ github.run_id }}
@@ -205,7 +205,7 @@ jobs:
           # Vite build will fail on TS errors — second gate after typecheck
           VITE_APP_ENV: production
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-dist-${{ github.run_id }}
           path: packages/web/dist/

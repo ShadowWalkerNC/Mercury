@@ -47,7 +47,7 @@ jobs:
         env:
           NODE_ENV: test
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: web-coverage
@@ -101,7 +101,7 @@ jobs:
           JWT_SECRET:   ci-test-secret
           NODE_ENV:     test
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: api-coverage
