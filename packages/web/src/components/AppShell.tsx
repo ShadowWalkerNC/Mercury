@@ -8,6 +8,7 @@ import { WSOp } from '@mercury/shared';
 import { SpaceSidebar } from './SpaceSidebar';
 import { ChannelSidebar } from './ChannelSidebar';
 import { ChatArea } from './ChatArea';
+import { ModalHost } from './modals/ModalHost';
 
 function SpaceLayout() {
   const { spaceId, channelId } = useParams<{ spaceId: string; channelId: string }>();
@@ -20,7 +21,6 @@ function SpaceLayout() {
   }, [spaceId, channelId]);
 
   if (!spaceId) return null;
-
   return (
     <>
       <ChannelSidebar spaceId={spaceId} />
@@ -45,6 +45,7 @@ export function AppShell() {
 
   return (
     <div style={{ display: 'flex', height: '100%' }}>
+      <ModalHost />
       <SpaceSidebar />
       <Routes>
         <Route path="channels/:spaceId/:channelId" element={<SpaceLayout />} />
