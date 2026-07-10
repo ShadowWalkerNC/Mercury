@@ -1,0 +1,69 @@
+/**
+ * Mercury — Responsive Breakpoints
+ * Stage 1: Breakpoint tokens + utility classes for layout switching.
+ * Use with CSS custom media or standard @media queries.
+ */
+
+:root {
+  /* Breakpoint values (reference in JS via getComputedStyle if needed) */
+  --bp-mobile-max:  479px;
+  --bp-tablet-min:  480px;
+  --bp-tablet-max:  1023px;
+  --bp-desktop-min: 1024px;
+  --bp-wide-min:    1440px;
+}
+
+/* ── Mobile-only overrides (≤479px) ────────────────────────────────────── */
+@media (max-width: 479px) {
+  :root {
+    --text-base: 13px;
+    --text-md:   14px;
+    --text-lg:   16px;
+
+    /* Panels become full-width sheets on mobile */
+    --sidebar-width:    100%;
+    --presence-width:   100%;
+
+    /* Nav shifts to bottom */
+    --command-bar-height: 42px;
+    --input-bar-height:   44px;
+  }
+
+  /* Hide desktop-only elements */
+  .desktop-only { display: none !important; }
+}
+
+/* ── Tablet (480px–1023px) ──────────────────────────────────────────────── */
+@media (min-width: 480px) and (max-width: 1023px) {
+  :root {
+    --sidebar-width:   180px;
+    --presence-width:  0px; /* collapsed on tablet */
+  }
+
+  .presence-panel { display: none !important; }
+  .tablet-only    { display: block; }
+  .mobile-only    { display: none !important; }
+}
+
+/* ── Desktop (≥1024px) ──────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .mobile-only  { display: none !important; }
+  .tablet-only  { display: none !important; }
+  .desktop-only { display: block; }
+
+  /* Bottom nav hidden on desktop */
+  .mobile-nav   { display: none !important; }
+}
+
+/* ── Wide (≥1440px) — breathing room ───────────────────────────────────── */
+@media (min-width: 1440px) {
+  :root {
+    --sidebar-width:   220px;
+    --presence-width:  240px;
+  }
+}
+
+/* ── Utility display helpers ────────────────────────────────────────────── */
+.mobile-only  { display: none; }
+.tablet-only  { display: none; }
+.desktop-only { display: none; }

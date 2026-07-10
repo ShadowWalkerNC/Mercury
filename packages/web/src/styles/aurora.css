@@ -1,0 +1,107 @@
+/**
+ * Mercury — Aurora Glow Fields
+ * Stage 1: Reusable aurora background layer classes.
+ * All fields are pointer-events:none and sit at z-index:0 (--z-aurora).
+ * Wrap in <div class="aurora-canvas"> inside a position:relative container.
+ */
+
+.aurora-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-aurora);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.aurora-field {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(72px);
+  will-change: transform, opacity;
+  animation: aurora-drift var(--aurora-duration, 18s) ease-in-out infinite alternate;
+}
+
+/* ── Field variants ─────────────────────────────────────────────────────── */
+.aurora-violet {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(130, 50, 255, 0.28) 0%,
+    rgba(130, 50, 255, 0.10) 45%,
+    transparent 70%
+  );
+  width: 600px;
+  height: 380px;
+  top: 20%;
+  left: -5%;
+  --aurora-duration: 20s;
+}
+
+.aurora-emerald {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(10, 190, 110, 0.24) 0%,
+    rgba(10, 190, 110, 0.08) 45%,
+    transparent 70%
+  );
+  width: 560px;
+  height: 340px;
+  top: 30%;
+  right: -5%;
+  --aurora-duration: 24s;
+}
+
+.aurora-blue {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(60, 130, 255, 0.18) 0%,
+    rgba(60, 130, 255, 0.06) 45%,
+    transparent 70%
+  );
+  width: 440px;
+  height: 280px;
+  top: 40%;
+  left: 35%;
+  --aurora-duration: 28s;
+}
+
+.aurora-magenta {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(200, 70, 255, 0.16) 0%,
+    rgba(200, 70, 255, 0.05) 45%,
+    transparent 70%
+  );
+  width: 320px;
+  height: 200px;
+  top: 5%;
+  left: 30%;
+  --aurora-duration: 16s;
+}
+
+.aurora-teal {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(20, 220, 140, 0.16) 0%,
+    rgba(20, 220, 140, 0.05) 45%,
+    transparent 70%
+  );
+  width: 360px;
+  height: 220px;
+  bottom: 5%;
+  right: 25%;
+  --aurora-duration: 22s;
+}
+
+/* ── Drift animation ────────────────────────────────────────────────────── */
+@keyframes aurora-drift {
+  0%   { transform: translate(0,    0)    scale(1.00); opacity: 0.85; }
+  33%  { transform: translate(30px, -20px) scale(1.06); opacity: 1.00; }
+  66%  { transform: translate(-20px, 30px) scale(0.96); opacity: 0.90; }
+  100% { transform: translate(15px, -10px) scale(1.03); opacity: 0.95; }
+}
+
+/* ── Reduced motion: freeze aurora in place ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-field { animation: none; }
+}
