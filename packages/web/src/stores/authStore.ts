@@ -1,77 +1,73 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { User } from '@mercury/shared';
-
-const REFRESH_TOKEN_KEY = 'mercury_refresh_token';
+import { api } from '@/lib/api';
 
 interface AuthState {
-  user:         User | null;
-  accessToken:  string | null;
-  isLoading:    boolean;
-  totpRequired: boolean;
-  totpSession:  string | null;
+  user:          User | null;
+  accessToken:   string | null;
+  totpPending:   boolean;
 
-  login:     (email: string, password: string) => Promise<void>;
-  register:  (username: string, email: string, password: string) => Promise<void>;
-  refresh:   () => Promise<boolean>;
-  logout:    () => void;
-  setTokens: (accessToken: string, refreshToken: string, user: User) => void;
+  login:         (identifier: string, password: string) => Promise<{ totp: boolean }>;
+  loginTotp:     (code: string) => Promise<void>;
+  register:      (username: string, email: string, password: string) => Promise<void>;
+  logout:        () => Promise<void>;
+  refresh:       () => Promise<void>;
+  setUser:       (user: User | null) => void;
+  setToken:      (token: string | null) => void;
+  openTotpFlow:  () => void; // placeholder — wired in M-044
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null, accessToken: null, isLoading: false, totpRequired: false, totpSession: null,
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null, accessToken: null, totpPending: false,
 
-  setTokens(accessToken, refreshToken, user) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    set({ user, accessToken, totpRequired: false, totpSession: null });
-  },
+      async login(identifier, password) {
+        const res = await api.post<{ access_token?: string; totp_required?: boolean; user?: User }>(
+          '/api/v1/auth/login', { identifier, password }
+        );
+        if (res.totp_required) {
+          set({ totpPending: true });
+          return { totp: true };
+        }
+        set({ user: res.user ?? null, accessToken: res.access_token ?? null, totpPending: false });
+        return { totp: false };
+      },
 
-  async login(email, password) {
-    const res = await fetch('/api/v1/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json() as {
-      user?: User; access_token?: string; refresh_token?: string;
-      totp_required?: boolean; totp_session?: string; error?: string;
-    };
-    if (!res.ok) throw new Error(data.error ?? 'Login failed');
-    if (data.totp_required && data.totp_session) {
-      set({ totpRequired: true, totpSession: data.totp_session }); return;
+      async loginTotp(code) {
+        const res = await api.post<{ access_token: string; user: User }>(
+          '/api/v1/auth/totp', { code }
+        );
+        set({ user: res.user, accessToken: res.access_token, totpPending: false });
+      },
+
+      async register(username, email, password) {
+        const res = await api.post<{ access_token: string; user: User }>(
+          '/api/v1/auth/register', { username, email, password }
+        );
+        set({ user: res.user, accessToken: res.access_token });
+      },
+
+      async logout() {
+        try { await api.post('/api/v1/auth/logout', {}); } catch { /* ignore */ }
+        set({ user: null, accessToken: null, totpPending: false });
+      },
+
+      async refresh() {
+        const res = await api.post<{ access_token: string; user: User }>(
+          '/api/v1/auth/refresh', {}
+        );
+        set({ user: res.user, accessToken: res.access_token });
+      },
+
+      setUser:      (user)  => set({ user }),
+      setToken:     (token) => set({ accessToken: token }),
+      openTotpFlow: ()      => { /* wired in M-044 */ },
+    }),
+    {
+      name:    'mercury-auth',
+      partialize: (s) => ({ accessToken: s.accessToken, user: s.user }),
     }
-    get().setTokens(data.access_token!, data.refresh_token!, data.user!);
-  },
-
-  async register(username, email, password) {
-    const res = await fetch('/api/v1/auth/register', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
-    });
-    const data = await res.json() as {
-      user?: User; access_token?: string; refresh_token?: string; error?: string;
-    };
-    if (!res.ok) throw new Error(data.error ?? 'Registration failed');
-    get().setTokens(data.access_token!, data.refresh_token!, data.user!);
-  },
-
-  async refresh() {
-    const rt = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (!rt) return false;
-    set({ isLoading: true });
-    try {
-      const res = await fetch('/api/v1/auth/refresh', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: rt }),
-      });
-      if (!res.ok) { get().logout(); return false; }
-      const data = await res.json() as { access_token: string; refresh_token: string; user: User };
-      get().setTokens(data.access_token, data.refresh_token, data.user);
-      return true;
-    } catch { get().logout(); return false; }
-    finally { set({ isLoading: false }); }
-  },
-
-  logout() {
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    set({ user: null, accessToken: null, totpRequired: false, totpSession: null });
-  },
-}));
+  )
+);

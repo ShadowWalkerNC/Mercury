@@ -1,21 +1,18 @@
-/**
- * ModalHost — renders the currently open modal from uiStore.
- * Mount once inside AppShell, above everything else.
- * Clicking the backdrop closes the modal.
- */
 import { useUIStore } from '@/stores/uiStore';
 import { CreateSpaceModal } from './CreateSpaceModal';
 import { CreateChannelModal } from './CreateChannelModal';
 import { InviteMembersModal } from './InviteMembersModal';
+import { UserSettingsModal } from './UserSettingsModal';
 
 export function ModalHost() {
   const { modal, modalProps, closeModal } = useUIStore();
   if (!modal) return null;
 
   let content: React.ReactNode = null;
-  if (modal === 'createSpace')    content = <CreateSpaceModal onClose={closeModal} />;
-  if (modal === 'createChannel')  content = <CreateChannelModal onClose={closeModal} spaceId={modalProps['spaceId'] as string} defaultType={(modalProps['type'] as 'text' | 'voice') ?? 'text'} />;
-  if (modal === 'inviteMembers')  content = <InviteMembersModal onClose={closeModal} spaceId={modalProps['spaceId'] as string} />;
+  if (modal === 'createSpace')   content = <CreateSpaceModal onClose={closeModal} />;
+  if (modal === 'createChannel') content = <CreateChannelModal onClose={closeModal} spaceId={modalProps['spaceId'] as string} defaultType={(modalProps['type'] as 'text' | 'voice') ?? 'text'} />;
+  if (modal === 'inviteMembers') content = <InviteMembersModal onClose={closeModal} spaceId={modalProps['spaceId'] as string} />;
+  if (modal === 'userSettings')  content = <UserSettingsModal onClose={closeModal} />;
 
   if (!content) return null;
 
@@ -29,21 +26,6 @@ export function ModalHost() {
 }
 
 const css = {
-  backdrop: {
-    position: 'fixed' as const,
-    inset: 0,
-    background: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  panel: {
-    background: 'var(--bg-secondary)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 24,
-    width: 440,
-    maxWidth: 'calc(100vw - 32px)',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-  },
+  backdrop: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  panel:    { background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', padding: 24, width: 480, maxWidth: 'calc(100vw - 32px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' },
 } satisfies Record<string, React.CSSProperties>;
