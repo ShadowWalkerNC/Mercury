@@ -1,0 +1,214 @@
+# Dependabot configuration for Mercury monorepo.
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+#
+# Schedule: weekly on Mondays at 08:00 UTC for all ecosystems.
+# PR limits are low to keep the queue manageable on a monorepo.
+# Minor + patch updates are grouped per package to reduce noise.
+# Major version bumps always get individual PRs for intentional review.
+
+version: 2
+
+updates:
+
+  # ── GitHub Actions ───────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: UTC
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: 'ci(deps)'
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # ── Root (monorepo tooling: pnpm, turbo, lint configs) ─────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: UTC
+    labels:
+      - dependencies
+      - tooling
+    commit-message:
+      prefix: 'chore(deps)'
+    open-pull-requests-limit: 3
+    ignore:
+      # Never auto-bump major versions of workspace tooling
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'turbo'
+        update-types: ['version-update:semver-major']
+    groups:
+      root-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # ── packages/web ──────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /packages/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: UTC
+    labels:
+      - dependencies
+      - web
+    commit-message:
+      prefix: 'chore(deps/web)'
+    open-pull-requests-limit: 5
+    ignore:
+      # React major: intentional upgrade only
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
+      # React Router major: breaking changes, manual review
+      - dependency-name: 'react-router-dom'
+        update-types: ['version-update:semver-major']
+      # Zustand major: store API changes
+      - dependency-name: 'zustand'
+        update-types: ['version-update:semver-major']
+      # Vite major: config changes required
+      - dependency-name: 'vite'
+        update-types: ['version-update:semver-major']
+    groups:
+      # Group all non-React minor/patch updates together
+      web-deps-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+      # Group React + types together (they must be bumped in sync)
+      react-ecosystem:
+        applies-to: version-updates
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+        update-types:
+          - minor
+          - patch
+      # Group all testing deps together
+      web-test-deps:
+        applies-to: version-updates
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+          - '@testing-library/*'
+          - 'jsdom'
+        update-types:
+          - minor
+          - patch
+
+  # ── packages/api ──────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /packages/api
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: UTC
+    labels:
+      - dependencies
+      - api
+    commit-message:
+      prefix: 'chore(deps/api)'
+    open-pull-requests-limit: 5
+    ignore:
+      # Drizzle ORM major: migration changes required
+      - dependency-name: 'drizzle-orm'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'drizzle-kit'
+        update-types: ['version-update:semver-major']
+      # Fastify major: breaking plugin API changes
+      - dependency-name: 'fastify'
+        update-types: ['version-update:semver-major']
+      # jose major: JWT API changes
+      - dependency-name: 'jose'
+        update-types: ['version-update:semver-major']
+    groups:
+      api-deps-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - 'drizzle-orm'
+          - 'drizzle-kit'
+      # Drizzle ORM + Kit must stay in sync
+      drizzle-ecosystem:
+        applies-to: version-updates
+        patterns:
+          - 'drizzle-orm'
+          - 'drizzle-kit'
+        update-types:
+          - minor
+          - patch
+
+  # ── packages/server ────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /packages/server
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: UTC
+    labels:
+      - dependencies
+      - server
+    commit-message:
+      prefix: 'chore(deps/server)'
+    open-pull-requests-limit: 5
+    ignore:
+      # ws (WebSocket) major: protocol + API changes
+      - dependency-name: 'ws'
+        update-types: ['version-update:semver-major']
+    groups:
+      server-deps-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # ── packages/shared ───────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /packages/shared
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: UTC
+    labels:
+      - dependencies
+      - shared
+    commit-message:
+      prefix: 'chore(deps/shared)'
+    open-pull-requests-limit: 3
+    groups:
+      shared-deps-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
