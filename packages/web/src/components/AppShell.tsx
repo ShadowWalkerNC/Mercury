@@ -9,6 +9,7 @@ import { SpaceSidebar } from './SpaceSidebar';
 import { ChannelSidebar } from './ChannelSidebar';
 import { ChatArea } from './ChatArea';
 import { VoiceArea } from './VoiceArea';
+import { MemberList } from './MemberList';
 import { ModalHost } from './modals/ModalHost';
 
 function SpaceLayout() {
@@ -41,6 +42,7 @@ function SpaceLayout() {
     <>
       <ChannelSidebar spaceId={spaceId} />
       {mainArea}
+      {(!channel || channel.type === 'text') && <MemberList spaceId={spaceId} />}
     </>
   );
 }
