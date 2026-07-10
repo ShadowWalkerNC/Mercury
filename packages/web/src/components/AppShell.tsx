@@ -7,13 +7,29 @@ import { useUIStore } from '@/stores/uiStore';
 import { WSOp } from '@mercury/shared';
 import { SpaceSidebar } from './SpaceSidebar';
 import { ChannelSidebar } from './ChannelSidebar';
+import { ChatArea } from './ChatArea';
 
 function SpaceLayout() {
-  const { spaceId } = useParams<{ spaceId: string }>();
-  const setActiveSpace = useUIStore(s => s.setActiveSpace);
-  useEffect(() => { if (spaceId) setActiveSpace(spaceId); }, [spaceId]);
+  const { spaceId, channelId } = useParams<{ spaceId: string; channelId: string }>();
+  const setActiveSpace   = useUIStore(s => s.setActiveSpace);
+  const setActiveChannel = useUIStore(s => s.setActiveChannel);
+
+  useEffect(() => {
+    if (spaceId)   setActiveSpace(spaceId);
+    if (channelId) setActiveChannel(channelId);
+  }, [spaceId, channelId]);
+
   if (!spaceId) return null;
-  return <ChannelSidebar spaceId={spaceId} />;
+
+  return (
+    <>
+      <ChannelSidebar spaceId={spaceId} />
+      {channelId
+        ? <ChatArea spaceId={spaceId} channelId={channelId} />
+        : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>Select a channel</div>
+      }
+    </>
+  );
 }
 
 export function AppShell() {
@@ -30,20 +46,20 @@ export function AppShell() {
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       <SpaceSidebar />
-
       <Routes>
-        <Route path="channels/:spaceId/*" element={<SpaceLayout />} />
+        <Route path="channels/:spaceId/:channelId" element={<SpaceLayout />} />
+        <Route path="channels/:spaceId"             element={<SpaceLayout />} />
         <Route path="channels/@me" element={
           <aside style={{ width: 240, minWidth: 240, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
             Direct Messages
           </aside>
         } />
+        <Route path="*" element={
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+            Select a space
+          </div>
+        } />
       </Routes>
-
-      {/* Main content area — filled in M-038 */}
-      <div style={{ flex: 1, background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-        Select a channel
-      </div>
     </div>
   );
 }
