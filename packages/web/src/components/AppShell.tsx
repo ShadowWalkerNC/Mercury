@@ -1,84 +1,86 @@
 import { useEffect } from 'react';
-import { Routes, Route, useParams } from 'react-router-dom';
-import { gateway } from '@/lib/gateway';
-import { useAuthStore } from '@/stores/authStore';
-import { useSpaceStore } from '@/stores/spaceStore';
-import { useUIStore } from '@/stores/uiStore';
-import { WSOp } from '@mercury/shared';
-import { SpaceSidebar } from './SpaceSidebar';
-import { ChannelSidebar } from './ChannelSidebar';
-import { ChatArea } from './ChatArea';
-import { VoiceArea } from './VoiceArea';
-import { MemberList } from './MemberList';
-import { DMList } from './DMList';
-import { DMChat } from './DMChat';
-import { ModalHost } from './modals/ModalHost';
+import { Routes, Route } from 'react-router-dom';
+import { useUIStore } from '../stores/uiStore';
+import { AuroraCanvas } from './layout/AuroraCanvas';
+import { CommandBar } from './layout/CommandBar';
+import { SpaceRail } from './layout/SpaceRail';
+import { ContentStream } from './layout/ContentStream';
+import { MobileNav } from './layout/MobileNav';
+import '../styles/global.css';
 
-function SpaceLayout() {
-  const { spaceId, channelId } = useParams<{ spaceId: string; channelId: string }>();
-  const setActiveSpace   = useUIStore(s => s.setActiveSpace);
-  const setActiveChannel = useUIStore(s => s.setActiveChannel);
-  const channels         = useSpaceStore(s => spaceId ? (s.channels[spaceId] ?? []) : []);
-  const channel          = channels.find(c => c.id === channelId);
-
-  useEffect(() => {
-    if (spaceId)   setActiveSpace(spaceId);
-    if (channelId) setActiveChannel(channelId);
-  }, [spaceId, channelId]);
-
-  if (!spaceId) return null;
-
-  let mainArea: React.ReactNode = (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-      Select a channel
-    </div>
-  );
-
-  if (channelId) {
-    mainArea = channel?.type === 'voice'
-      ? <VoiceArea spaceId={spaceId} channelId={channelId} />
-      : <ChatArea  spaceId={spaceId} channelId={channelId} />;
-  }
-
-  return (
-    <>
-      <ChannelSidebar spaceId={spaceId} />
-      {mainArea}
-      {(!channel || channel.type === 'text') && <MemberList spaceId={spaceId} />}
-    </>
-  );
-}
-
+/**
+ * AppShell — Command Stream layout root.
+ *
+ * Layer order (z-index):
+ *   0  AuroraCanvas   — fixed aurora glow fields (pointer-events: none)
+ *   1  Shell body     — flex row filling viewport
+ *      ├ SpaceRail    — desktop-only circular icon rail (z-panel)
+ *      └ ContentStream— fluid glass card: sidebar + chat + presence
+ *  20  CommandBar     — global ⌘K pill pinned top-center
+ *  30  MobileNav      — mobile-only bottom tab bar
+ *  50+ Modals/toasts  — handled by uiStore portal targets
+ */
 export function AppShell() {
-  const user        = useAuthStore(s => s.user);
-  const fetchSpaces = useSpaceStore(s => s.fetchSpaces);
-  const subscribeWS = useSpaceStore(s => s.subscribeWS);
+  const openCommandBar = useUIStore(s => s.openCommandBar);
 
+  // Global ⌘K shortcut
   useEffect(() => {
-    if (!user) return;
-    gateway.connect();
-    const offReady = gateway.on(WSOp.READY, () => { fetchSpaces(); });
-    const unsubWS  = subscribeWS();
-    return () => { offReady(); unsubWS(); gateway.disconnect(); };
-  }, [user?.id]);
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        openCommandBar();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [openCommandBar]);
 
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
-      <ModalHost />
-      <SpaceSidebar />
-      <Routes>
-        <Route path="channels/:spaceId/:channelId" element={<SpaceLayout />} />
-        <Route path="channels/:spaceId"             element={<SpaceLayout />} />
-        <Route path="channels/@me/:dmId" element={<><DMList /><DMChat /></>} />
-        <Route path="channels/@me" element={
-          <><DMList /><div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Select a conversation</div></>
-        } />
-        <Route path="*" element={
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-            Select a space
-          </div>
-        } />
-      </Routes>
+    <div style={styles.root}>
+      {/* Layer 0 — aurora background */}
+      <AuroraCanvas />
+
+      {/* Layer 1 — app body */}
+      <div style={styles.body}>
+        {/* Desktop space icon rail */}
+        <SpaceRail />
+
+        {/* Fluid content stream */}
+        <ContentStream />
+      </div>
+
+      {/* Layer 20 — global command bar */}
+      <CommandBar />
+
+      {/* Layer 30 — mobile bottom nav */}
+      <MobileNav />
+
+      {/* Portal targets for modals and toasts */}
+      <div id="modal-root" style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal)' as any, pointerEvents: 'none' }} />
+      <div id="toast-root" style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 'var(--z-toast)' as any, pointerEvents: 'none' }} />
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  root: {
+    position: 'relative',
+    width: '100vw',
+    height: '100dvh',
+    overflow: 'hidden',
+    background: 'var(--canvas)',
+    isolation: 'isolate',
+  },
+  body: {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'row',
+    width: '100%',
+    height: '100%',
+    zIndex: 1,
+    // Leave top padding for CommandBar pill
+    paddingTop: 'calc(var(--command-bar-height) + 16px)',
+    // Leave bottom padding on mobile for MobileNav
+    paddingBottom: 0,
+  },
+};
