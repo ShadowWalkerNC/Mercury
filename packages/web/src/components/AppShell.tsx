@@ -10,6 +10,8 @@ import { ChannelSidebar } from './ChannelSidebar';
 import { ChatArea } from './ChatArea';
 import { VoiceArea } from './VoiceArea';
 import { MemberList } from './MemberList';
+import { DMList } from './DMList';
+import { DMChat } from './DMChat';
 import { ModalHost } from './modals/ModalHost';
 
 function SpaceLayout() {
@@ -67,10 +69,9 @@ export function AppShell() {
       <Routes>
         <Route path="channels/:spaceId/:channelId" element={<SpaceLayout />} />
         <Route path="channels/:spaceId"             element={<SpaceLayout />} />
+        <Route path="channels/@me/:dmId" element={<><DMList /><DMChat /></>} />
         <Route path="channels/@me" element={
-          <aside style={{ width: 240, minWidth: 240, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-            Direct Messages
-          </aside>
+          <><DMList /><div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Select a conversation</div></>
         } />
         <Route path="*" element={
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
