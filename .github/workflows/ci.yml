@@ -1,0 +1,212 @@
+name: CI
+
+# ────────────────────────────────────────────────────────────────────
+# Required status checks for main branch protection:
+#   • CI / Lint
+#   • CI / Type Check
+#   • CI / Web Tests
+#   • CI / API Tests
+#   • CI / Build
+# ────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: '${{ env.PNPM_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @mercury/shared build
+
+      - name: Lint (web)
+        run: pnpm --filter @mercury/web lint
+
+      - name: Lint (shared)
+        run: pnpm --filter @mercury/shared lint
+
+  # ───────────────────────────────────────────────────────────────────
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: '${{ env.PNPM_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @mercury/shared build
+
+      - name: Type-check all packages
+        run: |
+          pnpm --filter @mercury/shared exec tsc --noEmit
+          pnpm --filter @mercury/web     exec tsc --noEmit
+          pnpm --filter @mercury/api     exec tsc --noEmit
+
+  # ───────────────────────────────────────────────────────────────────
+  test-web:
+    name: Web Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: '${{ env.PNPM_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @mercury/shared build
+
+      - name: Run web tests with coverage
+        run: |
+          pnpm --filter @mercury/web test \
+            --reporter=verbose \
+            --coverage \
+            --coverage.reporter=text \
+            --coverage.reporter=lcov \
+            --coverage.thresholds.branches=70 \
+            --coverage.thresholds.functions=75 \
+            --coverage.thresholds.lines=80
+        env:
+          NODE_ENV: test
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-coverage-${{ github.run_id }}
+          path: packages/web/coverage/
+          retention-days: 30
+
+  # ───────────────────────────────────────────────────────────────────
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER:     mercury
+          POSTGRES_PASSWORD: mercury
+          POSTGRES_DB:       mercury_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: '${{ env.PNPM_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @mercury/shared build
+
+      - name: Run API tests
+        run: pnpm --filter @mercury/api test --reporter=verbose --coverage
+        env:
+          DATABASE_URL: postgres://mercury:mercury@localhost:5432/mercury_test
+          JWT_SECRET:   ci-test-secret
+          NODE_ENV:     test
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-coverage-${{ github.run_id }}
+          path: packages/api/coverage/
+          retention-days: 30
+
+  # ───────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Build gate depends on type-check passing
+    needs: [typecheck]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: '${{ env.PNPM_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @mercury/shared build
+
+      - name: Build web (Vite production)
+        run: pnpm --filter @mercury/web build
+        env:
+          NODE_ENV: production
+          # Vite build will fail on TS errors — second gate after typecheck
+          VITE_APP_ENV: production
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-${{ github.run_id }}
+          path: packages/web/dist/
+          retention-days: 7
