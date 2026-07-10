@@ -1,0 +1,50 @@
+/**
+ * Design tokens — consumed as var(--name) throughout the app.
+ * Two themes: dark (default) and light (data-theme="light" on <html>).
+ */
+
+:root {
+  --bg-primary:    #1a1b1e;
+  --bg-secondary:  #25262b;
+  --bg-tertiary:   #2c2e33;
+  --bg-active:     #3a3d44;
+  --bg-hover:      rgba(255,255,255,0.04);
+
+  --text-primary:  #e8eaed;
+  --text-secondary:#a8adb8;
+  --text-muted:    #6c7180;
+
+  --border:        rgba(255,255,255,0.08);
+
+  --accent:        #5865f2;
+  --accent-dim:    rgba(88,101,242,0.18);
+  --danger:        #ed4245;
+  --success:       #3ba55c;
+
+  --radius-sm:     4px;
+  --radius-md:     8px;
+  --radius-lg:     12px;
+
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg-primary:    #f2f3f5;
+  --bg-secondary:  #ffffff;
+  --bg-tertiary:   #e9eaec;
+  --bg-active:     #d8dce6;
+  --bg-hover:      rgba(0,0,0,0.04);
+
+  --text-primary:  #1a1b1e;
+  --text-secondary:#4a4d57;
+  --text-muted:    #8a8e99;
+
+  --border:        rgba(0,0,0,0.1);
+
+  --accent:        #5865f2;
+  --accent-dim:    rgba(88,101,242,0.12);
+  --danger:        #d63031;
+  --success:       #27ae60;
+
+  color-scheme: light;
+}
