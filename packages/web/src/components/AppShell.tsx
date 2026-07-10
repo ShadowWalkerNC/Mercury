@@ -35,12 +35,24 @@ function SpaceLayout() {
 export function AppShell() {
   const user        = useAuthStore(s => s.user);
   const fetchSpaces = useSpaceStore(s => s.fetchSpaces);
+  const subscribeWS = useSpaceStore(s => s.subscribeWS);
 
   useEffect(() => {
     if (!user) return;
     gateway.connect();
-    const offReady = gateway.on(WSOp.READY, () => { fetchSpaces(); });
-    return () => { offReady(); gateway.disconnect(); };
+
+    const offReady = gateway.on(WSOp.READY, () => {
+      fetchSpaces();
+    });
+
+    // Subscribe to live space/channel WS events
+    const unsubWS = subscribeWS();
+
+    return () => {
+      offReady();
+      unsubWS();
+      gateway.disconnect();
+    };
   }, [user?.id]);
 
   return (
