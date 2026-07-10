@@ -1,12 +1,13 @@
 /**
- * MessageItem — single message row.
- * M-047: context menu, hover toolbar, inline edit
- * M-049: emoji reaction bar
- * M-050: attachment rendering
+ * MessageItem — Command Stream visual language.
+ * Stage 3: token-driven spacing, user accent colors, glass hover,
+ * pill edit/cancel actions, Avatar primitive, preserved logic.
  */
 import { useState, useRef, type FormEvent } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { Avatar } from './ui/Avatar';
+import { Pill } from './ui/Pill';
 import { MessageContextMenu, type MessageContextAction } from './MessageContextMenu';
 import { ReactionBar, type Reaction } from './ReactionBar';
 import { AttachmentRenderer, type AttachmentMeta } from './AttachmentRenderer';
@@ -29,6 +30,22 @@ interface Props {
   onEdited:  (updated: Message) => void;
 }
 
+// Deterministic accent color per user — cycles through token palette
+const USER_COLORS = [
+  'var(--accent)',
+  'var(--accent-emerald)',
+  'var(--accent-cyan)',
+  '#a78bfa',  // soft violet
+  '#f472b6',  // pink
+  '#34d399',  // teal
+  '#60a5fa',  // blue
+];
+function userColor(userId: string): string {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+  return USER_COLORS[h % USER_COLORS.length];
+}
+
 export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) {
   const me        = useAuthStore(s => s.user);
   const isMine    = me?.id === message.author_id;
@@ -43,8 +60,8 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
   const editRef                   = useRef<HTMLTextAreaElement>(null);
 
   const name      = message.author.display_name ?? message.author.username;
-  const initial   = name[0]?.toUpperCase() ?? '?';
   const timestamp = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const accentCol = userColor(message.author_id);
 
   async function handleDelete() {
     try { await api.delete(`/api/v1/messages/${message.id}`); onDeleted(message.id); }
@@ -75,41 +92,64 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
 
   return (
     <div
-      style={{ ...css.row, background: hovered ? 'var(--bg-hover)' : 'transparent' }}
+      style={{
+        ...css.row,
+        background: hovered ? 'rgba(180, 120, 255, 0.04)' : 'transparent',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY }); }}
     >
-      <div style={css.avatarWrap}>
-        <div style={css.avatar}>
-          {message.author.avatar
-            ? <img src={message.author.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={name} />
-            : <span style={{ fontSize: 16, fontWeight: 700 }}>{initial}</span>}
-        </div>
-      </div>
+      {/* Avatar */}
+      <Avatar
+        name={name}
+        src={message.author.avatar}
+        size={36}
+        style={{ marginTop: 2, flexShrink: 0 }}
+      />
 
       <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Meta row */}
         <div style={css.meta}>
-          <span style={css.authorName}>{name}</span>
+          <span style={{ ...css.authorName, color: accentCol }}>{name}</span>
           <span style={css.ts}>{timestamp}</span>
           {message.edited_at && <span style={css.edited}>(edited)</span>}
         </div>
 
+        {/* Content or edit form */}
         {editing ? (
-          <form onSubmit={handleEditSubmit} style={{ marginTop: 4 }}>
+          <form onSubmit={handleEditSubmit} style={{ marginTop: 'var(--space-2)' }}>
             <textarea
-              ref={editRef} value={editVal}
+              ref={editRef}
+              value={editVal}
               onChange={e => setEditVal(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Escape') setEditing(false);
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSubmit(e as never); }
               }}
-              rows={2} style={css.editArea}
+              rows={2}
+              style={css.editArea}
             />
-            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-              <button type="submit" disabled={editBusy} style={css.editSave}>{editBusy ? 'Saving…' : 'Save'}</button>
-              <button type="button" onClick={() => setEditing(false)} style={css.editCancel}>Cancel</button>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>Enter to save · Esc to cancel</span>
+            <div style={css.editActions}>
+              <Pill
+                as="button"
+                size="sm"
+                active
+                fill="var(--accent-dim)"
+                type="submit"
+                disabled={editBusy}
+              >
+                {editBusy ? 'Saving…' : 'Save'}
+              </Pill>
+              <Pill
+                as="button"
+                size="sm"
+                type="button"
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </Pill>
+              <span style={css.editHint}>Enter to save · Esc to cancel</span>
             </div>
           </form>
         ) : (
@@ -126,32 +166,131 @@ export function MessageItem({ message, spaceRole, onDeleted, onEdited }: Props) 
         />
       </div>
 
+      {/* Hover toolbar */}
       {hovered && !editing && (
         <div style={css.toolbar}>
-          {isMine    && <button style={css.toolBtn} title="Edit"   onClick={startEdit}>&#9998;</button>}
-          {canDelete && <button style={{ ...css.toolBtn, color: 'var(--danger)' }} title="Delete" onClick={handleDelete}>&#128465;</button>}
+          {isMine && (
+            <button
+              style={css.toolBtn}
+              title="Edit message"
+              aria-label="Edit message"
+              onClick={startEdit}
+            >
+              ✎
+            </button>
+          )}
+          {canDelete && (
+            <button
+              style={{ ...css.toolBtn, color: 'var(--danger)' }}
+              title="Delete message"
+              aria-label="Delete message"
+              onClick={handleDelete}
+            >
+              ✕
+            </button>
+          )}
         </div>
       )}
 
       {ctx && (
-        <MessageContextMenu x={ctx.x} y={ctx.y} actions={ctxActions} onClose={() => setCtx(null)} />
+        <MessageContextMenu
+          x={ctx.x} y={ctx.y}
+          actions={ctxActions}
+          onClose={() => setCtx(null)}
+        />
       )}
     </div>
   );
 }
 
 const css: Record<string, React.CSSProperties> = {
-  row:        { display: 'flex', gap: 12, padding: '4px 16px', borderRadius: 4, position: 'relative', transition: 'background 0.08s', minHeight: 44 },
-  avatarWrap: { flexShrink: 0, paddingTop: 2 },
-  avatar:     { width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  meta:       { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 },
-  authorName: { fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' },
-  ts:         { fontSize: 11, color: 'var(--text-muted)' },
-  edited:     { fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' },
-  content:    { fontSize: 14, color: 'var(--text-primary)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
-  toolbar:    { position: 'absolute', top: 4, right: 12, display: 'flex', gap: 4, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '2px 4px' },
-  toolBtn:    { fontSize: 15, background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 'var(--radius-sm)' },
-  editArea:   { width: '100%', resize: 'vertical', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 14, padding: '6px 8px', fontFamily: 'inherit' },
-  editSave:   { fontSize: 12, padding: '4px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer' },
-  editCancel: { fontSize: 12, padding: '4px 10px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer' },
+  row: {
+    display:      'flex',
+    gap:          'var(--space-3)',
+    padding:      'var(--space-2) var(--space-4)',
+    borderRadius: 'var(--radius-sm)',
+    position:     'relative',
+    transition:   `background var(--duration-instant) var(--ease-snap)`,
+    minHeight:    44,
+    alignItems:   'flex-start',
+  },
+  meta: {
+    display:     'flex',
+    alignItems:  'baseline',
+    gap:         'var(--space-2)',
+    marginBottom:'var(--space-1)',
+  },
+  authorName: {
+    fontSize:   'var(--text-sm)',
+    fontWeight: 700,
+    fontFamily: 'var(--font-sans)',
+    letterSpacing: 'var(--tracking-wide)',
+  },
+  ts: {
+    fontSize:   'var(--text-xs)',
+    color:      'var(--text-muted)',
+    fontFamily: 'var(--font-mono)',
+  },
+  edited: {
+    fontSize:  'var(--text-xs)',
+    color:     'var(--text-muted)',
+    fontStyle: 'italic',
+  },
+  content: {
+    fontSize:   'var(--text-base)',
+    color:      'var(--text-primary)',
+    margin:     0,
+    whiteSpace: 'pre-wrap',
+    wordBreak:  'break-word',
+    lineHeight: 'var(--leading-relaxed)',
+    fontFamily: 'var(--font-sans)',
+  },
+  toolbar: {
+    position:   'absolute',
+    top:        'var(--space-2)',
+    right:      'var(--space-3)',
+    display:    'flex',
+    gap:        'var(--space-1)',
+    background: 'var(--glass-elevated)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border:     '1px solid var(--border-violet)',
+    borderRadius: 'var(--radius-sm)',
+    padding:    '3px var(--space-2)',
+  },
+  toolBtn: {
+    fontSize:     15,
+    background:   'transparent',
+    border:       'none',
+    cursor:       'pointer',
+    padding:      '2px var(--space-2)',
+    borderRadius: 'var(--radius-xs)',
+    color:        'var(--text-secondary)',
+    transition:   `color var(--duration-fast) var(--ease-snap)`,
+  },
+  editArea: {
+    width:        '100%',
+    resize:       'vertical',
+    background:   'var(--glass-input)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    border:       '1px solid var(--border-violet)',
+    borderRadius: 'var(--radius-sm)',
+    color:        'var(--text-primary)',
+    fontSize:     'var(--text-base)',
+    padding:      'var(--space-2) var(--space-3)',
+    fontFamily:   'var(--font-sans)',
+    lineHeight:   'var(--leading-normal)',
+  },
+  editActions: {
+    display:    'flex',
+    gap:        'var(--space-2)',
+    marginTop:  'var(--space-2)',
+    alignItems: 'center',
+  },
+  editHint: {
+    fontSize:  'var(--text-xs)',
+    color:     'var(--text-muted)',
+    fontFamily:'var(--font-mono)',
+  },
 };
