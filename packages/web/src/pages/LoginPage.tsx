@@ -1,54 +1,31 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import type { User } from '@mercury/shared';
 
 export function LoginPage() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode]         = useState('');
   const [error, setError]       = useState<string | null>(null);
   const [busy, setBusy]         = useState(false);
-  const { login, totpRequired, totpSession, setTokens } = useAuthStore();
-  const navigate = useNavigate();
+
+  const { login } = useAuthStore();
+  const navigate  = useNavigate();
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault(); setError(null); setBusy(true);
     try {
-      await login(email, password);
-      if (!useAuthStore.getState().totpRequired) navigate('/');
-    } catch (err) { setError(err instanceof Error ? err.message : 'Login failed'); }
-    finally { setBusy(false); }
-  }
-
-  async function handleTotp(e: FormEvent) {
-    e.preventDefault(); setError(null); setBusy(true);
-    try {
-      const res = await fetch('/api/v1/auth/2fa/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ totp_session: totpSession, code }),
-      });
-      const data = await res.json() as { user?: User; access_token?: string; refresh_token?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'Invalid code');
-      setTokens(data.access_token!, data.refresh_token!, data.user!);
+      const { totp } = await login(email, password);
+      // TOTP required — authStore has set totpPending: true, hand off to /2fa
+      if (totp) { navigate('/2fa'); return; }
       navigate('/');
-    } catch (err) { setError(err instanceof Error ? err.message : '2FA failed'); }
-    finally { setBusy(false); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setBusy(false);
+    }
   }
 
   const s = styles;
-  if (totpRequired) return (
-    <div style={s.page}>
-      <form onSubmit={handleTotp} style={s.card}>
-        <h1 style={s.title}>Two-factor authentication</h1>
-        <p style={s.sub}>Enter the code from your authenticator app.</p>
-        {error && <p style={s.error}>{error}</p>}
-        <input style={s.input} type="text" placeholder="6-digit code" value={code}
-          onChange={e => setCode(e.target.value)} autoFocus maxLength={8} />
-        <button style={s.btn} type="submit" disabled={busy}>Verify</button>
-      </form>
-    </div>
-  );
 
   return (
     <div style={s.page}>
@@ -57,10 +34,24 @@ export function LoginPage() {
         <p style={s.sub}>Sign in to Mercury</p>
         {error && <p style={s.error}>{error}</p>}
         <label style={s.label}>Email</label>
-        <input style={s.input} type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+        <input
+          style={s.input}
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+        />
         <label style={s.label}>Password</label>
-        <input style={s.input} type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-        <button style={s.btn} type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        <input
+          style={s.input}
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
+        <button style={s.btn} type="submit" disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
         <p style={{ marginTop: 16, color: 'var(--text-secondary)', fontSize: 14 }}>
           No account? <Link to="/register" style={{ color: 'var(--accent)' }}>Register</Link>
         </p>
