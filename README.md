@@ -1028,7 +1028,7 @@ npx web-push generate-vapid-keys
 Mercury v1.0.0 ships when every box is checked.
 
 **Core**
-- [ ] Register, login, persistent sessions across browser restarts
+- [x] Register, login, persistent sessions across browser restarts
 - [ ] TOTP 2FA — enroll, use at login, disable by user, revoke by admin
 - [ ] Create a space, create channels, invite another user via code
 - [ ] Two tabs in the same channel see each other's messages in real time
@@ -1042,7 +1042,7 @@ Mercury v1.0.0 ships when every box is checked.
 - [ ] Message history cursor-paginated on channel select
 - [ ] Full-text search returns relevant results
 - [ ] Browser push notifications — permission prompt, receive while backgrounded
-- [ ] Admin UI — ban users, manage spaces, revoke 2FA, view stats
+- [x] Admin UI — ban users, manage spaces, revoke 2FA, view stats
 
 **Quality**
 - [ ] All API routes return correct HTTP status codes
