@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useUIStore } from '../stores/uiStore';
 import { useThemeStore } from '../stores/themeStore';
+import { useSpaceStore } from '../stores/spaceStore';
 import { AuroraCanvas } from './layout/AuroraCanvas';
 import { CommandBar } from './layout/CommandBar';
 import { SpaceRail } from './layout/SpaceRail';
@@ -19,6 +20,11 @@ import '../styles/global.css';
 export function AppShell() {
   const openCommandBar = useUIStore(s => s.openCommandBar);
   const auroraEnabled  = useThemeStore(s => s.auroraEnabled);
+  const fetchSpaces    = useSpaceStore(s => s.fetchSpaces);
+
+  useEffect(() => {
+    fetchSpaces();
+  }, [fetchSpaces]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

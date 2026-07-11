@@ -25,7 +25,7 @@ export const useAuthStore = create<AuthState>()(
 
       async login(identifier, password) {
         const res = await api.post<{ access_token?: string; totp_required?: boolean; user?: User }>(
-          '/api/v1/auth/login', { identifier, password }
+          '/api/v1/auth/login', { email: identifier, password }
         );
         if (res.totp_required) { set({ totpPending: true }); return { totp: true }; }
         set({ user: res.user ?? null, accessToken: res.access_token ?? null, totpPending: false });

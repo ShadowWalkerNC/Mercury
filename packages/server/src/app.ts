@@ -17,6 +17,7 @@ import { dmRouter } from './routes/dm.js';
 import { livekitRouter } from './routes/livekit.js';
 import { adminRouter } from './routes/admin.js';
 import { totpRouter } from './routes/totp.js';
+import { usersRouter } from './routes/users.js';
 
 export function buildApp(): Express {
   const app = express();
@@ -29,6 +30,7 @@ export function buildApp(): Express {
 
   app.use('/api/v1/auth',         authRouter);
   app.use('/api/v1/auth/2fa',     totpRouter);
+  app.use('/api/v1/users',        usersRouter);
   app.use('/api/v1/spaces',       spacesRouter);
   app.use('/api/v1/spaces/:spaceId/channels',                          channelsRouter);
   app.use('/api/v1/spaces/:spaceId/members',                           membersRouter);

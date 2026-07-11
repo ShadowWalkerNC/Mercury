@@ -41,7 +41,7 @@ export async function subscribe(): Promise<boolean> {
 
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly:      true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
+    applicationServerKey: urlBase64ToUint8Array(VAPID_KEY) as any,
   });
   await api.post('/api/v1/push/subscribe', sub.toJSON());
   return true;

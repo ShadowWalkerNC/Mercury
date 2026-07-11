@@ -21,7 +21,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
-    try { msg = (await res.json() as { message?: string }).message ?? msg; } catch { /* raw */ }
+    try {
+      const data = await res.json() as { error?: string; message?: string };
+      msg = data.error ?? data.message ?? msg;
+    } catch { /* raw */ }
     throw new Error(msg);
   }
 

@@ -12,11 +12,20 @@ export function ModalHost() {
 
   let content: React.ReactNode = null;
   if (modal === 'createSpace')    content = <CreateSpaceModal    onClose={closeModal} />;
-  if (modal === 'createChannel')  content = <CreateChannelModal  onClose={closeModal} spaceId={modalProps['spaceId'] as string} defaultType={(modalProps['type'] as 'text' | 'voice') ?? 'text'} />;
-  if (modal === 'inviteMembers')  content = <InviteMembersModal  onClose={closeModal} spaceId={modalProps['spaceId'] as string} />;
+  if (modal === 'createChannel') {
+    const props = modalProps as { spaceId: string; type?: 'text' | 'voice' };
+    content = <CreateChannelModal  onClose={closeModal} spaceId={props.spaceId} defaultType={props.type ?? 'text'} />;
+  }
+  if (modal === 'inviteMembers') {
+    const props = modalProps as { spaceId: string };
+    content = <InviteMembersModal  onClose={closeModal} spaceId={props.spaceId} />;
+  }
   if (modal === 'userSettings')   content = <UserSettingsModal   onClose={closeModal} />;
   if (modal === 'twoFactorSetup') content = <TwoFactorSetupModal onClose={closeModal} />;
-  if (modal === 'settings')       content = <SpaceSettingsModal  onClose={closeModal} spaceId={modalProps['spaceId'] as string} />;
+  if (modal === 'settings') {
+    const props = modalProps as { spaceId: string };
+    content = <SpaceSettingsModal  onClose={closeModal} spaceId={props.spaceId} />;
+  }
 
   if (!content) return null;
   return (

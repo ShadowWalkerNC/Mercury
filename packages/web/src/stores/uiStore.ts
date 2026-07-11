@@ -5,7 +5,7 @@ export interface ModalPropsMap {
   createSpace:    Record<string, never>;
   createChannel:  { spaceId: string; type?: 'text' | 'voice' };
   inviteMembers:  { spaceId: string };
-  settings:       Record<string, never>;
+  settings:       { spaceId: string };
   userSettings:   Record<string, never>;
   twoFactorSetup: Record<string, never>;
 }

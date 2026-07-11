@@ -176,12 +176,10 @@ function ParticipantTile({ participant }: { participant: Participant }) {
   const isSpeaking = participant.isSpeaking;
   const isMuted = !participant.isMicrophoneEnabled;
 
-  // Try to get camera video track
-  const videoTrack = Array.from(
-    isLocal
-      ? (participant as LocalParticipant).videoTrackPublications.values()
-      : (participant as RemoteParticipant).videoTrackPublications.values()
-  ).find(pub => pub.source === Track.Source.Camera && pub.isSubscribed && pub.track);
+  const publications = isLocal
+    ? Array.from((participant as LocalParticipant).videoTrackPublications.values())
+    : Array.from((participant as RemoteParticipant).videoTrackPublications.values());
+  const videoTrack = publications.find(pub => pub.source === Track.Source.Camera && pub.isSubscribed && pub.track);
 
   const displayName = isLocal ? (user?.username ?? 'You') : participant.identity;
   const initial = displayName[0]?.toUpperCase() ?? '?';

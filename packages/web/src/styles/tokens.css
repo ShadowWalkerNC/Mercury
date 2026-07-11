@@ -7,48 +7,48 @@
 
 :root {
   /* ── Canvas ─────────────────────────────────────────────────────────── */
-  --canvas:            #000000;           /* absolute black base */
+  --canvas:            #130c24;           /* rich deep violet base */
 
   /* ── Glass Surfaces ─────────────────────────────────────────────────── */
-  --glass-base:        rgba(8, 5, 16, 0.28);     /* main content card */
-  --glass-panel:       rgba(10, 6, 18, 0.26);    /* side rail panels */
-  --glass-nav:         rgba(14, 8, 26, 0.62);    /* bottom nav / overlays */
-  --glass-input:       rgba(18, 10, 32, 0.52);   /* input fields */
-  --glass-elevated:    rgba(22, 14, 38, 0.72);   /* modals, command palette */
+  --glass-base:        rgba(24, 16, 44, 0.60);   /* main content card */
+  --glass-panel:       rgba(20, 12, 38, 0.55);   /* side rail panels */
+  --glass-nav:         rgba(26, 16, 48, 0.78);   /* bottom nav / overlays */
+  --glass-input:       rgba(32, 20, 60, 0.70);   /* input fields */
+  --glass-elevated:    rgba(38, 24, 72, 0.88);   /* modals, command palette */
 
   /* ── Glass Borders ───────────────────────────────────────────────────── */
-  --border-violet:     rgba(180, 120, 255, 0.14);
-  --border-emerald:    rgba(10, 200, 120, 0.12);
-  --border-blue:       rgba(80, 140, 255, 0.11);
-  --border-strong:     rgba(180, 120, 255, 0.28); /* command bar, focused */
-  --border-danger:     rgba(255, 60, 60, 0.40);
+  --border-violet:     rgba(180, 120, 255, 0.28);
+  --border-emerald:    rgba(10, 200, 120, 0.24);
+  --border-blue:       rgba(80, 140, 255, 0.22);
+  --border-strong:     rgba(180, 120, 255, 0.48); /* command bar, focused */
+  --border-danger:     rgba(255, 60, 60, 0.50);
 
   /* ── Aurora Accent Fields ────────────────────────────────────────────── */
-  --aurora-violet:     rgba(130, 50, 255, 0.10);
-  --aurora-emerald:    rgba(10, 190, 110, 0.09);
-  --aurora-blue:       rgba(60, 130, 255, 0.06);
-  --aurora-magenta:    rgba(200, 70, 255, 0.05);
-  --aurora-teal:       rgba(20, 220, 140, 0.05);
+  --aurora-violet:     rgba(130, 50, 255, 0.15);
+  --aurora-emerald:    rgba(10, 190, 110, 0.13);
+  --aurora-blue:       rgba(60, 130, 255, 0.10);
+  --aurora-magenta:    rgba(200, 70, 255, 0.08);
+  --aurora-teal:       rgba(20, 220, 140, 0.08);
 
   /* ── Accent Colors ───────────────────────────────────────────────────── */
-  --accent:            #c084fc;           /* fuchsia-violet — primary CTA */
-  --accent-bright:     #e040fb;           /* electric fuchsia — active states */
-  --accent-dim:        rgba(192, 132, 252, 0.14);
-  --accent-emerald:    #10c97a;           /* presence, success */
+  --accent:            #d8b4fe;           /* fuchsia-violet — primary CTA */
+  --accent-bright:     #f0a0ff;           /* electric fuchsia — active states */
+  --accent-dim:        rgba(216, 180, 254, 0.20);
+  --accent-emerald:    #22c55e;           /* presence, success */
   --accent-cyan:       #22d3ee;           /* links, mentions, live indicators */
-  --danger:            #f87171;           /* errors — WCAG AA on dark bg */
-  --danger-dim:        rgba(248, 113, 113, 0.14);
-  --warning:           #fbbf24;
-  --warning-dim:       rgba(251, 191, 36, 0.14);
+  --danger:            #fca5a5;           /* errors — WCAG AA on dark bg */
+  --danger-dim:        rgba(252, 165, 165, 0.20);
+  --warning:           #fde047;
+  --warning-dim:       rgba(253, 224, 71, 0.20);
 
-  /* ── Text — all WCAG AA (≥4.5:1) on --canvas ────────────────────────── */
-  --text-primary:      #ede9f8;           /* 15.2:1 — main prose */
-  --text-secondary:    #a89cc8;           /*  6.1:1 — labels, metadata */
-  --text-muted:        #7c72a0;           /*  4.6:1 — timestamps, hints */
-  --text-placeholder:  rgba(168, 156, 200, 0.40); /* inputs only */
-  --text-danger:       #f87171;
-  --text-accent:       #c084fc;
-  --text-emerald:      #10c97a;
+  /* ── Text ───────────────────────────────────────────────────────────── */
+  --text-primary:      #ffffff;           /* maximum contrast prose */
+  --text-secondary:    #d1c9e8;           /* clearly legible labels, metadata */
+  --text-muted:        #a59abf;           /* visible timestamps, hints */
+  --text-placeholder:  rgba(255, 255, 255, 0.50); /* inputs only */
+  --text-danger:       #fca5a5;
+  --text-accent:       #d8b4fe;
+  --text-emerald:      #22c55e;
   --text-cyan:         #22d3ee;
 
   /* ── Geometry ────────────────────────────────────────────────────────── */

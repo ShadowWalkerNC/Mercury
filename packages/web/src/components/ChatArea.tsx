@@ -18,9 +18,15 @@ import type { AttachmentMeta } from './AttachmentRenderer';
 interface Props { spaceId: string; channelId: string; }
 
 export function ChatArea({ spaceId, channelId }: Props) {
-  const me      = useAuthStore(s => s.user);
-  const members = useSpaceStore(s => s.members?.[spaceId] ?? []);
+  const me                      = useAuthStore(s => s.user);
+  const [members, setMembers]   = useState<any[]>([]);
   const myRole  = (members.find((m: { id: string; role: string }) => m.id === me?.id)?.role ?? 'member') as 'owner' | 'admin' | 'member';
+
+  useEffect(() => {
+    api.get<any[]>(`/api/v1/spaces/${spaceId}/members`)
+      .then(setMembers)
+      .catch(() => {});
+  }, [spaceId]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading,  setLoading]  = useState(true);

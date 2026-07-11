@@ -16,7 +16,7 @@ function backoff(attempt: number): number {
 
 class GatewayClient {
   private ws: WebSocket | null = null;
-  private handlers = new Map<number, Set<Handler>>();
+  private handlers = new Map<string, Set<Handler>>();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private attempt = 0;
@@ -25,7 +25,7 @@ class GatewayClient {
   connect(): void { this.intentionalClose = false; this._open(); }
   disconnect(): void { this.intentionalClose = true; this._cleanup(); }
 
-  on(op: number, handler: Handler): () => void {
+  on(op: string, handler: Handler): () => void {
     if (!this.handlers.has(op)) this.handlers.set(op, new Set());
     this.handlers.get(op)!.add(handler);
     return () => this.handlers.get(op)?.delete(handler);

@@ -40,12 +40,12 @@ export function MemberList({ spaceId }: Props) {
 
   useEffect(() => {
     const offs = [
-      gateway.on(WSOp.MEMBER_ADD, (p) => {
+      gateway.on(WSOp.MEMBER_JOIN, (p) => {
         const m = p.d as Member & { space_id: string };
         if (m.space_id !== spaceId) return;
         setMembers(prev => prev.some(x => x.id === m.id) ? prev : [...prev, m]);
       }),
-      gateway.on(WSOp.MEMBER_REMOVE, (p) => {
+      gateway.on(WSOp.MEMBER_LEAVE, (p) => {
         const { user_id, space_id } = p.d as { user_id: string; space_id: string };
         if (space_id !== spaceId) return;
         setMembers(prev => prev.filter(x => x.id !== user_id));
@@ -89,7 +89,7 @@ export function MemberList({ spaceId }: Props) {
           {online.length > 0 && (
             <Group label={`Online — ${online.length}`}>
               {online.map(m => (
-                <MemberRow key={m.id} member={m} isSelf={m.id === me?.id} canManage={canManage}
+                <MemberRow key={m.id} member={m} isSelf={m.id === me?.id}
                   onContext={(e) => { e.preventDefault(); setCtx({ member: m, x: e.clientX, y: e.clientY }); }} />
               ))}
             </Group>
@@ -97,7 +97,7 @@ export function MemberList({ spaceId }: Props) {
           {offline.length > 0 && (
             <Group label={`Offline — ${offline.length}`}>
               {offline.map(m => (
-                <MemberRow key={m.id} member={m} isSelf={m.id === me?.id} canManage={canManage}
+                <MemberRow key={m.id} member={m} isSelf={m.id === me?.id}
                   onContext={(e) => { e.preventDefault(); setCtx({ member: m, x: e.clientX, y: e.clientY }); }} />
               ))}
             </Group>
@@ -132,8 +132,8 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function MemberRow({ member, isSelf, canManage, onContext }: {
-  member: Member; isSelf: boolean; canManage: boolean;
+function MemberRow({ member, isSelf, onContext }: {
+  member: Member; isSelf: boolean;
   onContext: (e: React.MouseEvent) => void;
 }) {
   const name    = member.display_name ?? member.username;

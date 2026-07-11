@@ -18,7 +18,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@mercury/shared": "workspace:*",
+    "@mercury/shared": "*",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

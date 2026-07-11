@@ -21,7 +21,6 @@ export function CommandPalette() {
   const commandBarOpen  = useUIStore(s => s.commandBarOpen);
   const closeCommandBar = useUIStore(s => s.closeCommandBar);
   const setActiveSpace  = useUIStore(s => s.setActiveSpace);
-  const setActiveChannel= useUIStore(s => s.setActiveChannel);
   const spaces          = useSpaceStore(s => s.spaces);
 
   const [query,    setQuery]    = useState('');

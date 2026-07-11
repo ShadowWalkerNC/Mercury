@@ -5,7 +5,7 @@
  * aria-current applied to active channel rows.
  */
 import { useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useSpaceStore } from '@/stores/spaceStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useUnreadStore } from '@/stores/unreadStore';
@@ -24,7 +24,6 @@ export function ChannelSidebar({ spaceId }: Props) {
   const openModal     = useUIStore(s => s.openModal);
   const space         = useSpaceStore(s => s.spaces.find(sp => sp.id === spaceId));
   const { channels: unreadMap, increment, markRead } = useUnreadStore();
-  const navigate      = useNavigate();
 
   useEffect(() => { fetchChannels(spaceId); }, [spaceId]);
 

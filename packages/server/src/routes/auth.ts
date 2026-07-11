@@ -51,6 +51,7 @@ function safeUser(row: Record<string, unknown>): User {
     avatar: (row['avatar'] as string | null) ?? null,
     status: (row['status'] as User['status']) ?? 'offline',
     created_at: row['created_at'] as string,
+    display_name: (row['display_name'] as string | null) ?? null,
   };
 }
 

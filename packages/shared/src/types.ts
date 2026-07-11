@@ -8,6 +8,9 @@ export interface User {
   avatar: string | null;
   status: PresenceStatus;
   created_at: string;
+  display_name?: string | null;
+  totp_enabled?: boolean | number;
+  is_admin?: boolean | number;
 }
 
 export type PresenceStatus = 'online' | 'idle' | 'offline';

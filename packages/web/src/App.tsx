@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { useSpaceStore } from './stores/spaceStore';
@@ -32,15 +32,24 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 // After auth, if the user has no spaces yet, push them to /onboarding.
 
 function OnboardingRedirect() {
-  const spaces   = useSpaceStore(s => s.spaces);
-  const navigate = useNavigate();
+  const spaces      = useSpaceStore(s => s.spaces);
+  const fetchSpaces = useSpaceStore(s => s.fetchSpaces);
+  const navigate    = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (spaces.length === 0) {
+    fetchSpaces()
+      .then(() => setLoading(false))
+      .catch(() => setLoading(false));
+  }, [fetchSpaces]);
+
+  useEffect(() => {
+    if (!loading && spaces.length === 0) {
       navigate('/onboarding', { replace: true });
     }
-  }, [spaces.length]);
+  }, [spaces.length, loading, navigate]);
 
+  if (loading) return <PageSpinner />;
   return null;
 }
 

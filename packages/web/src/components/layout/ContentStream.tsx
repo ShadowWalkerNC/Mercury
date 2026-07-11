@@ -18,6 +18,7 @@ import { MemberList } from '../MemberList';
  * The inner glass card has 28px radius and backdrop-filter.
  */
 export function ContentStream() {
+  const activeSpaceId = useUIStore(s => s.activeSpaceId);
   const activeChannelId = useUIStore(s => s.activeChannelId);
   const activeChannelType = useUIStore(s => s.activeChannelType);
 
@@ -27,20 +28,25 @@ export function ContentStream() {
 
         {/* Channel list sidebar — hidden on mobile */}
         <div className="desktop-only" style={styles.sidebar}>
-          <ChannelSidebar />
+          {activeSpaceId && <ChannelSidebar spaceId={activeSpaceId} />}
         </div>
 
         {/* Main content area */}
         <main style={styles.main} role="main">
-          {activeChannelType === 'voice'
-            ? <VoiceArea />
-            : <ChatArea />
-          }
+          {activeSpaceId && activeChannelId ? (
+            activeChannelType === 'voice'
+              ? <VoiceArea spaceId={activeSpaceId} channelId={activeChannelId} />
+              : <ChatArea spaceId={activeSpaceId} channelId={activeChannelId} />
+          ) : (
+            <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              Select a channel to get started.
+            </div>
+          )}
         </main>
 
         {/* Presence / member list — hidden on tablet + mobile */}
         <div className="presence-panel desktop-only" style={styles.presence}>
-          <MemberList />
+          {activeSpaceId && <MemberList spaceId={activeSpaceId} />}
         </div>
 
       </div>

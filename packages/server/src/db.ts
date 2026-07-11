@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { DB_PATH } from './config.js';
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
-export const db = new Database(DB_PATH);
+export const db: Database.Database = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 db.pragma('synchronous = NORMAL');
@@ -25,6 +25,7 @@ migrate(`CREATE TABLE IF NOT EXISTS users (
   email        TEXT UNIQUE NOT NULL,
   password     TEXT NOT NULL,
   avatar       TEXT,
+  display_name TEXT,
   status       TEXT NOT NULL DEFAULT 'offline',
   is_admin     INTEGER NOT NULL DEFAULT 0,
   is_banned    INTEGER NOT NULL DEFAULT 0,
@@ -38,6 +39,7 @@ migrate(`ALTER TABLE users ADD COLUMN is_admin     INTEGER NOT NULL DEFAULT 0;`)
 migrate(`ALTER TABLE users ADD COLUMN is_banned    INTEGER NOT NULL DEFAULT 0;`);
 migrate(`ALTER TABLE users ADD COLUMN totp_secret  TEXT;`);
 migrate(`ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0;`);
+migrate(`ALTER TABLE users ADD COLUMN display_name TEXT;`);
 
 migrate(`CREATE TABLE IF NOT EXISTS totp_backup_codes (
   id         TEXT PRIMARY KEY,

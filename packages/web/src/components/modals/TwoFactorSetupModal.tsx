@@ -8,6 +8,7 @@
  *   disable → enter code, POST disable (shown when totp_enabled)
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import { ModalShell } from './ModalShell';
@@ -15,7 +16,10 @@ import { Field, ErrorBanner, inputStyle, submitBtn, cancelBtn } from './CreateSp
 
 type Step = 'qr' | 'verify' | 'backup' | 'disable';
 
-export function TwoFactorSetupModal({ onClose }: { onClose: () => void }) {
+export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => void }) {
+  const navigate    = useNavigate();
+  const onClose     = propOnClose ?? (() => navigate(-1));
+
   const user        = useAuthStore(s => s.user);
   const setUser     = useAuthStore(s => s.setUser);
   const totpEnabled = (user as { totp_enabled?: boolean } | null)?.totp_enabled ?? false;
