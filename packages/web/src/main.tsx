@@ -1,17 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import '@/styles/global.css';
+import './styles/global.css';
 import { App } from './App';
-import { useThemeStore } from '@/stores/themeStore';
 
-// Apply persisted theme before first paint to prevent FOUC
-useThemeStore.getState().set(useThemeStore.getState().theme);
+// zustand/persist hydrates themeStore from localStorage automatically
+// on first selector access — no manual bootstrap needed here.
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <App />
     </BrowserRouter>
-  </StrictMode>
+  </StrictMode>,
 );
