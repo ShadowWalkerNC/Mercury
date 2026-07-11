@@ -1,17 +1,20 @@
 /**
- * UserSettingsModal — profile edit + theme toggle + notifications + 2FA.
- * M-054: notifications toggle row
+ * UserSettingsModal — profile edit + notifications + 2FA entry point.
+ * Opened via: ModalHost (openModal 'userSettings') or /settings/profile route.
  */
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { useUIStore } from '@/stores/uiStore';
 import { ModalShell } from './ModalShell';
 import { Field, ErrorBanner, inputStyle, submitBtn, cancelBtn } from './CreateSpaceModal';
-import { ThemeToggle } from '../ThemeToggle';
-import { useUIStore } from '@/stores/uiStore';
 import { isSupported, currentPermission, subscribe, unsubscribe } from '@/lib/notifications';
 
-export function UserSettingsModal({ onClose }: { onClose: () => void }) {
+export function UserSettingsModal({ onClose }: { onClose?: () => void }) {
+  const navigate  = useNavigate();
+  const close     = onClose ?? (() => navigate(-1));
+
   const user      = useAuthStore(s => s.user);
   const setUser   = useAuthStore(s => s.setUser);
   const openModal = useUIStore(s => s.openModal);
@@ -19,11 +22,11 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
   const [displayName,   setDisplayName]   = useState(user?.display_name ?? '');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar ?? null);
   const [avatarFile,    setAvatarFile]    = useState<File | null>(null);
-  const [busy,   setBusy]   = useState(false);
-  const [error,  setError]  = useState<string | null>(null);
-  const [saved,  setSaved]  = useState(false);
-  const [notifPerm,  setNotifPerm]  = useState<NotificationPermission>('default');
-  const [notifBusy,  setNotifBusy]  = useState(false);
+  const [busy,      setBusy]      = useState(false);
+  const [error,     setError]     = useState<string | null>(null);
+  const [saved,     setSaved]     = useState(false);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+  const [notifBusy, setNotifBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setNotifPerm(currentPermission()); }, []);
@@ -78,10 +81,11 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
   const notifSupported = isSupported();
 
   return (
-    <ModalShell title="User Settings" onClose={onClose}>
+    <ModalShell title="User Settings" onClose={close}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {error && <ErrorBanner msg={error} />}
 
+        {/* Avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div
             style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--accent)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
@@ -99,6 +103,7 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
         </div>
 
+        {/* Profile fields */}
         <Field label="Display name">
           <input style={inputStyle} value={displayName} onChange={e => setDisplayName(e.target.value)}
             placeholder={user?.username} maxLength={80} />
@@ -107,12 +112,6 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
         <Field label="Username">
           <input style={{ ...inputStyle, opacity: 0.6 }} value={user?.username ?? ''} disabled />
         </Field>
-
-        {/* Appearance */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Appearance</span>
-          <ThemeToggle />
-        </div>
 
         {/* Notifications */}
         {notifSupported && (
@@ -147,14 +146,15 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Two-factor authentication</span>
           <button type="button"
             style={{ ...submitBtn, fontSize: 12, padding: '5px 12px' }}
-            onClick={() => { onClose(); openModal('twoFactorSetup', {}); }}>
+            onClick={() => { close(); openModal('twoFactorSetup'); }}>
             {user?.totp_enabled ? 'Manage 2FA' : 'Enable 2FA'}
           </button>
         </div>
 
+        {/* Actions */}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
           {saved && <span style={{ fontSize: 13, color: 'var(--success)' }}>✓ Saved</span>}
-          <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+          <button type="button" onClick={close} style={cancelBtn}>Cancel</button>
           <button type="submit" disabled={busy} style={submitBtn}>{busy ? 'Saving…' : 'Save Changes'}</button>
         </div>
       </form>
