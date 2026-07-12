@@ -1,5 +1,5 @@
 /**
- * TwoFactorSetupModal — opened via openModal('twoFactorSetup')
+ * TwoFactorSetupModal — opened via openModal('twoFactorSetup') or /settings/2fa route.
  *
  * Steps:
  *   qr      → show QR + manual secret
@@ -16,9 +16,9 @@ import { Field, ErrorBanner, inputStyle, submitBtn, cancelBtn } from './CreateSp
 
 type Step = 'qr' | 'verify' | 'backup' | 'disable';
 
-export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => void }) {
+export function TwoFactorSetupModal({ onClose }: { onClose?: () => void }) {
   const navigate    = useNavigate();
-  const onClose     = propOnClose ?? (() => navigate(-1));
+  const close       = onClose ?? (() => navigate(-1));
 
   const user        = useAuthStore(s => s.user);
   const setUser     = useAuthStore(s => s.setUser);
@@ -69,7 +69,7 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
     try {
       await api.post('/api/v1/users/@me/totp/disable', { code });
       setUser({ ...(user!), totp_enabled: false } as typeof user);
-      onClose();
+      close();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid code');
     } finally { setBusy(false); }
@@ -82,7 +82,7 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
   }
 
   if (step === 'disable') return (
-    <ModalShell title="Disable Two-Factor Auth" onClose={onClose}>
+    <ModalShell title="Disable Two-Factor Auth" onClose={close}>
       <form onSubmit={handleDisable} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
           Enter the 6-digit code from your authenticator app to disable 2FA.
@@ -94,7 +94,7 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
             placeholder="000000" maxLength={6} autoFocus inputMode="numeric" required />
         </Field>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+          <button type="button" onClick={close} style={cancelBtn}>Cancel</button>
           <button type="submit" disabled={busy || code.length !== 6}
             style={{ ...submitBtn, background: 'var(--danger)' }}>
             {busy ? 'Disabling…' : 'Disable 2FA'}
@@ -105,7 +105,7 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
   );
 
   if (step === 'backup') return (
-    <ModalShell title="Save Your Backup Codes" onClose={onClose}>
+    <ModalShell title="Save Your Backup Codes" onClose={close}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
           Store these somewhere safe. Each code can be used once if you lose your authenticator.
@@ -120,14 +120,14 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
             style={{ ...submitBtn, background: copied ? 'var(--success)' : 'var(--bg-tertiary)', color: copied ? '#fff' : 'var(--text-primary)', fontSize: 13, padding: '8px 16px' }}>
             {copied ? 'Copied!' : 'Copy All'}
           </button>
-          <button onClick={onClose} style={submitBtn}>Done</button>
+          <button onClick={close} style={submitBtn}>Done</button>
         </div>
       </div>
     </ModalShell>
   );
 
   return (
-    <ModalShell title="Set Up Two-Factor Auth" onClose={onClose}>
+    <ModalShell title="Set Up Two-Factor Auth" onClose={close}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {step === 'qr' && (
           <>
@@ -144,7 +144,7 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+              <button type="button" onClick={close} style={cancelBtn}>Cancel</button>
               <button type="button" onClick={() => setStep('verify')} style={submitBtn} disabled={!secret}>Next</button>
             </div>
           </>
