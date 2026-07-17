@@ -98,6 +98,12 @@ export function initGateway(server: Server): void {
         subscribeToChannels(userId, channelIds);
         registerSocket(userId, w);
 
+        const presencePayload = {
+          op: WSOp.PRESENCE_UPDATE,
+          d: { user_id: userId, status: 'online' },
+        };
+        channelIds.forEach(cid => broadcast(cid, presencePayload));
+
         clearTimeout(identifyTimer);
         identified = true;
         w.userId = userId;
@@ -148,6 +154,28 @@ export function initGateway(server: Server): void {
         unregisterSocket(w.userId, w);
         if (!userSockets.has(w.userId)) {
           db.prepare("UPDATE users SET status = 'offline' WHERE id = ?").run(w.userId);
+
+          const spaceChannels = db.prepare(`
+            SELECT c.id FROM channels c
+            INNER JOIN members m ON m.space_id = c.space_id
+            WHERE m.user_id = ?
+          `).all(w.userId) as { id: string }[];
+
+          const dmChannels = db.prepare(`
+            SELECT channel_id AS id FROM dm_members WHERE user_id = ?
+          `).all(w.userId) as { id: string }[];
+
+          const allChannels = [
+            ...spaceChannels.map(c => c.id),
+            ...dmChannels.map(c => c.id),
+          ];
+
+          const presencePayload = {
+            op: WSOp.PRESENCE_UPDATE,
+            d: { user_id: w.userId, status: 'offline' },
+          };
+          allChannels.forEach(cid => broadcast(cid, presencePayload));
+
           unsubscribeAll(w.userId);
         }
       }

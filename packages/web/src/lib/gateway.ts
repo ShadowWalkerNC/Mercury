@@ -1,16 +1,14 @@
-import { WSOp } from '@mercury/shared';
+import { WSOp, WS_RECONNECT_BASE_MS, WS_RECONNECT_MAX_MS } from '@mercury/shared';
 import type { WSPayload } from '@mercury/shared';
 import { useAuthStore } from '@/stores/authStore';
 
 type Handler = (payload: WSPayload) => void;
 
 const PING_INTERVAL_MS  = 30_000;
-const RECONNECT_BASE_MS = 1_000;
-const RECONNECT_MAX_MS  = 30_000;
 const RECONNECT_JITTER  = 0.3;
 
 function backoff(attempt: number): number {
-  const base = Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS);
+  const base = Math.min(WS_RECONNECT_BASE_MS * 2 ** attempt, WS_RECONNECT_MAX_MS);
   return base * (1 + (Math.random() - 0.5) * 2 * RECONNECT_JITTER);
 }
 

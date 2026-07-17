@@ -36,8 +36,12 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
 
   useEffect(() => {
     if (totpEnabled) return;
-    api.get<{ secret: string; otpauth_url: string }>('/api/v1/users/@me/totp/setup')
-      .then(({ secret: s, otpauth_url: u }) => { setSecret(s); setOtpauthUrl(u); })
+    api.post<{ secret: string; otpauth_url: string; backup_codes: string[] }>('/api/v1/auth/2fa/setup', {})
+      .then(({ secret: s, otpauth_url: u, backup_codes: b }) => {
+        setSecret(s);
+        setOtpauthUrl(u);
+        setBackupCodes(b);
+      })
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load 2FA setup'));
   }, []);
 
@@ -51,10 +55,7 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
     if (code.length !== 6) { setError('Enter the 6-digit code'); return; }
     setError(null); setBusy(true);
     try {
-      const { backup_codes } = await api.post<{ backup_codes: string[] }>(
-        '/api/v1/users/@me/totp/enable', { code }
-      );
-      setBackupCodes(backup_codes);
+      await api.post('/api/v1/auth/2fa/verify-setup', { code });
       setUser({ ...(user!), totp_enabled: true } as typeof user);
       setStep('backup');
     } catch (err) {
@@ -67,7 +68,7 @@ export function TwoFactorSetupModal({ onClose: propOnClose }: { onClose?: () => 
     if (code.length !== 6) { setError('Enter the 6-digit code'); return; }
     setError(null); setBusy(true);
     try {
-      await api.post('/api/v1/users/@me/totp/disable', { code });
+      await api.post('/api/v1/auth/2fa/disable', { code });
       setUser({ ...(user!), totp_enabled: false } as typeof user);
       onClose();
     } catch (err) {

@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { randomUUID } from 'node:crypto';
-import { extname } from 'node:path';
+import { extname, resolve } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import type { Request } from 'express';
 import { db } from '../db.js';
 import { ulid } from '../utils/ulid.js';
@@ -11,6 +12,48 @@ import { UPLOAD_DIR, UPLOAD_MAX_SIZE_MB } from '../config.js';
 
 export const uploadsRouter = Router();
 uploadsRouter.use(requireAuth);
+
+// GET /presign
+// Returns a local PUT url to mock AWS S3 presigned URL upload flow
+uploadsRouter.get('/presign', (req: AuthRequest, res) => {
+  const ext = (req.query['ext'] as string | undefined) ?? 'bin';
+  const filename = `${randomUUID()}.${ext}`;
+  const putUrl = `${req.protocol}://${req.get('host')}/api/v1/upload/direct/${filename}`;
+  const publicUrl = `/uploads/${filename}`;
+
+  res.json({
+    url: putUrl,
+    key: filename,
+    public_url: publicUrl,
+  });
+});
+
+// PUT /direct/:filename
+// Directly streams uploaded file to local disk, simulating S3 upload completion
+uploadsRouter.put('/direct/:filename', (req: AuthRequest, res) => {
+  const { filename } = req.params as { filename: string };
+  const filePath = resolve(UPLOAD_DIR, filename);
+
+  const chunks: Buffer[] = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => {
+    const buffer = Buffer.concat(chunks);
+    try {
+      writeFileSync(filePath, buffer);
+      
+      const id = ulid();
+      const mime = req.headers['content-type'] as string || 'application/octet-stream';
+      db.prepare(`
+        INSERT INTO attachments (id, message_id, url, filename, size, mime_type)
+        VALUES (?, NULL, ?, ?, ?, ?)
+      `).run(id, `/uploads/${filename}`, filename, buffer.length, mime);
+
+      res.status(200).json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to write file' });
+    }
+  });
+});
 
 // ─── Allowed MIME types ────────────────────────────────────────────────────────────
 //

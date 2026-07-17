@@ -91,6 +91,31 @@ messagesRouter.post(
 
     broadcast(channelId, { op: WSOp.MESSAGE_CREATE, d: { message } });
 
+    // Send push notifications asynchronously to other space members
+    const spaceInfo = db.prepare(`
+      SELECT s.name, m.user_id
+      FROM channels c
+      INNER JOIN spaces s ON s.id = c.space_id
+      INNER JOIN members m ON m.space_id = s.id
+      WHERE c.id = ? AND m.user_id != ?
+    `).all(channelId, req.userId) as { name: string; user_id: string }[];
+
+    const first = spaceInfo[0];
+    if (first) {
+      const spaceName = first.name;
+      const userIds = spaceInfo.map(info => info.user_id);
+      
+      import('../utils/push.js')
+        .then(({ sendPushNotification }) => {
+          sendPushNotification(userIds, {
+            title: `${message.author_username} in ${spaceName}`,
+            body: content.trim(),
+            data: { channelId }
+          });
+        })
+        .catch(console.error);
+    }
+
     res.status(201).json(message);
   }
 );

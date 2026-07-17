@@ -125,5 +125,15 @@ migrate(`CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_i
 migrate(`CREATE INDEX IF NOT EXISTS idx_dm_members_user  ON dm_members(user_id);`);
 migrate(`CREATE INDEX IF NOT EXISTS idx_totp_backup_user ON totp_backup_codes(user_id);`);
 
+migrate(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_push_sub_user ON push_subscriptions(user_id);`);
+
 db.prepare(`INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('version', '1')`).run();
 console.log(`[db] Connected to ${DB_PATH} (WAL mode)`);

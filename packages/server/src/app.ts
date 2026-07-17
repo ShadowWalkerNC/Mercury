@@ -18,6 +18,7 @@ import { livekitRouter } from './routes/livekit.js';
 import { adminRouter } from './routes/admin.js';
 import { totpRouter } from './routes/totp.js';
 import { usersRouter } from './routes/users.js';
+import { pushRouter } from './routes/push.js';
 
 export function buildApp(): Express {
   const app = express();
@@ -39,11 +40,24 @@ export function buildApp(): Express {
   app.use('/api/v1/channels/:channelId/messages',                      messagesRouter);
   app.use('/api/v1/channels/:channelId/messages/:msgId/reactions',     reactionsRouter);
   app.use('/api/v1/upload',       uploadsRouter);
+  app.use('/api/v1/uploads',      uploadsRouter);
   app.use('/api/v1/search',       searchRouter);
   app.use('/api/v1/dm',           dmRouter);
+  app.use('/api/v1/dms',          dmRouter);
+  app.use('/api/v1/push',         pushRouter);
   app.use('/api/v1/livekit',      livekitRouter);
   app.use('/api/v1/admin',        adminRouter);
-  app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+  app.use((_req, res) => res.status(404).json({ error: 'Not found', code: 'ERR_NOT_FOUND' }));
+
+  // Global error handler — catches unhandled sync/async route exceptions
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    console.error('[error] Unhandled exception:', err);
+    const statusCode = err.status || err.statusCode || 500;
+    res.status(statusCode).json({
+      error: err.message || 'Internal Server Error',
+      code: err.code || 'ERR_INTERNAL_SERVER',
+    });
+  });
 
   return app;
 }

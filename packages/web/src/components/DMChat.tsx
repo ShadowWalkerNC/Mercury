@@ -25,21 +25,21 @@ export function DMChat() {
     if (!dmId) return;
     setLoading(true); setMessages([]);
     Promise.all([
-      api.get<Message[]>(`/api/v1/channels/${dmId}/messages`),
-      api.get<{ recipient: typeof recipient }>(`/api/v1/dms/${dmId}`),
+      api.get<Message[]>(`/api/v1/dm/${dmId}/messages`),
+      api.get<{ recipient: typeof recipient }>(`/api/v1/dm/${dmId}`),
     ]).then(([msgs, info]) => {
       setMessages(msgs);
       setRecipient(info.recipient);
       setTimeout(scrollToBottom, 50);
-    }).finally(() => setLoading(false));
+    }).catch(console.error).finally(() => setLoading(false));
   }, [dmId]);
 
   useEffect(() => {
     const offs = [
-      gateway.on(WSOp.MESSAGE_CREATE, (p) => {
-        const msg = p.d as Message & { channel_id: string };
-        if (msg.channel_id !== dmId) return;
-        setMessages(prev => [...prev, msg]); setTimeout(scrollToBottom, 30);
+      gateway.on(WSOp.DM_MESSAGE_CREATE, (p) => {
+        const { message } = p.d as { message: Message & { channel_id: string } };
+        if (message.channel_id !== dmId) return;
+        setMessages(prev => [...prev, message]); setTimeout(scrollToBottom, 30);
       }),
       gateway.on(WSOp.MESSAGE_UPDATE, (p) => {
         const msg = p.d as Message & { channel_id: string };
@@ -57,7 +57,7 @@ export function DMChat() {
 
   function handleSend(content: string, attachment?: AttachmentMeta) {
     if (!dmId) return;
-    api.post(`/api/v1/channels/${dmId}/messages`, {
+    api.post(`/api/v1/dm/${dmId}/messages`, {
       content,
       ...(attachment ? { attachment } : {}),
     }).catch(console.error);

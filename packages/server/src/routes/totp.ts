@@ -41,7 +41,7 @@ totpRouter.post('/setup', (req: AuthRequest, res) => {
     db.prepare('INSERT INTO totp_backup_codes (id, user_id, code_hash) VALUES (?, ?, ?)')
       .run(ulid(), req.userId, bcrypt.hashSync(code, BCRYPT_COST));
   }
-  res.json({ otpauth_url: authenticator.keyuri(user.email, 'Mercury', secret), backup_codes: plainCodes });
+  res.json({ otpauth_url: authenticator.keyuri(user.email, 'Mercury', secret), backup_codes: plainCodes, secret });
 });
 
 // POST /api/v1/auth/2fa/verify-setup
@@ -109,9 +109,9 @@ totpRouter.post('/verify',
   }
 );
 
-// DELETE /api/v1/auth/2fa
+// POST /api/v1/auth/2fa/disable
 // Disables 2FA. Requires current TOTP code to confirm intent.
-totpRouter.delete('/',
+totpRouter.post('/disable',
   validateBody({ code: { type: 'string', min: 6, max: 8 } }),
   (req: AuthRequest, res) => {
     const { code } = req.body as { code: string };

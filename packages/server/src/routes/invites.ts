@@ -4,7 +4,7 @@ import { db } from '../db.js';
 import { ulid } from '../utils/ulid.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
-import type { Invite } from '@mercury/shared';
+import type { Invite, Space } from '@mercury/shared';
 
 export const invitesRouter = Router();
 invitesRouter.use(requireAuth);
@@ -58,9 +58,101 @@ inviteSpaceRouter.post(
 
 export { inviteSpaceRouter };
 
+// GET /api/v1/invites/:code
+// Returns preview metadata for the invite.
+invitesRouter.get('/:code', (req: AuthRequest, res) => {
+  const { code } = req.params as { code: string };
+
+  const invite = db.prepare('SELECT * FROM invites WHERE code = ?').get(code) as Invite | undefined;
+
+  if (!invite) {
+    res.status(404).json({ error: 'Invalid invite code' });
+    return;
+  }
+
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+    res.status(410).json({ error: 'Invite has expired' });
+    return;
+  }
+
+  if (invite.max_uses !== null && invite.uses >= invite.max_uses) {
+    res.status(410).json({ error: 'Invite has reached its use limit' });
+    return;
+  }
+
+  const space = db.prepare(
+    'SELECT id, name, icon, owner_id, created_at FROM spaces WHERE id = ?'
+  ).get(invite.space_id) as Space | undefined;
+
+  if (!space) {
+    res.status(404).json({ error: 'Space not found' });
+    return;
+  }
+
+  const memberCount = db.prepare('SELECT COUNT(*) as count FROM members WHERE space_id = ?').get(invite.space_id) as { count: number };
+
+  res.json({
+    code: invite.code,
+    uses: invite.uses,
+    max_uses: invite.max_uses,
+    expires_at: invite.expires_at,
+    space: {
+      ...space,
+      member_count: memberCount.count,
+    },
+  });
+});
+
+// POST /api/v1/invites/:code/accept
+// Joins the space, identical behavior to redeem.
+invitesRouter.post('/:code/accept', (req: AuthRequest, res) => {
+  const { code } = req.params as { code: string };
+
+  const invite = db.prepare('SELECT * FROM invites WHERE code = ?').get(code) as Invite | undefined;
+
+  if (!invite) {
+    res.status(404).json({ error: 'Invalid invite code' });
+    return;
+  }
+
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+    res.status(410).json({ error: 'Invite has expired' });
+    return;
+  }
+
+  if (invite.max_uses !== null && invite.uses >= invite.max_uses) {
+    res.status(410).json({ error: 'Invite has reached its use limit' });
+    return;
+  }
+
+  const already = db.prepare(
+    'SELECT 1 FROM members WHERE space_id = ? AND user_id = ?'
+  ).get(invite.space_id, req.userId);
+
+  if (already) {
+    res.status(409).json({ error: 'Already a member of this space' });
+    return;
+  }
+
+  const redeem = db.transaction(() => {
+    db.prepare(`
+      INSERT INTO members (id, space_id, user_id, role) VALUES (?, ?, ?, 'member')
+    `).run(ulid(), invite.space_id, req.userId);
+
+    db.prepare('UPDATE invites SET uses = uses + 1 WHERE code = ?').run(code);
+  });
+
+  redeem();
+
+  const space = db.prepare(
+    'SELECT id, name, icon, owner_id, created_at FROM spaces WHERE id = ?'
+  ).get(invite.space_id) as Space;
+
+  res.status(201).json(space);
+});
+
 // ─── POST /api/v1/invites/:code/redeem ─────────────────────────────────────────
 // Redeems an invite code — joins the user to the space.
-
 invitesRouter.post('/:code/redeem', (req: AuthRequest, res) => {
   const { code } = req.params as { code: string };
 

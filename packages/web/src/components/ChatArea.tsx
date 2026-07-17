@@ -61,14 +61,14 @@ export function ChatArea({ spaceId, channelId }: Props) {
         setMessages(prev => prev.filter(m => m.id !== message_id));
       }),
       gateway.on(WSOp.REACTION_ADD, (p) => {
-        const { message_id, channel_id, emoji, user_id } =
-          p.d as { message_id: string; channel_id: string; emoji: string; user_id: string };
+        const { reaction, channel_id } = p.d as { reaction: any; channel_id: string };
+        const { message_id, emoji, user_id } = reaction;
         if (channel_id !== channelId) return;
         setMessages(prev => prev.map(m => {
           if (m.id !== message_id) return m;
-          const existing = (m.reactions ?? []).find((r: Reaction) => r.emoji === emoji);
-          const reactions: Reaction[] = existing
-            ? (m.reactions ?? []).map((r: Reaction) => r.emoji === emoji ? { ...r, count: r.count + 1, me: user_id === me?.id ? true : r.me } : r)
+          const existing = (m.reactions ?? []).find((r: any) => r.emoji === emoji);
+          const reactions: any[] = existing
+            ? (m.reactions ?? []).map((r: any) => r.emoji === emoji ? { ...r, count: r.count + 1, me: user_id === me?.id ? true : r.me } : r)
             : [...(m.reactions ?? []), { emoji, count: 1, me: user_id === me?.id }];
           return { ...m, reactions };
         }));

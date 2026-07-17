@@ -34,10 +34,19 @@ const DM_MESSAGE_SELECT = `
 
 dmRouter.post(
   '/',
-  validateBody({ user_id: { type: 'string', min: 1, max: 26 } }),
+  validateBody({
+    user_id:      { type: 'string', min: 1, max: 26, optional: true },
+    recipient_id: { type: 'string', min: 1, max: 26, optional: true }
+  }),
   (req: AuthRequest, res) => {
-    const { user_id: targetId } = req.body as { user_id: string };
+    const { user_id, recipient_id } = req.body as { user_id?: string; recipient_id?: string };
+    const targetId = user_id ?? recipient_id;
     const callerId = req.userId!;
+
+    if (!targetId) {
+      res.status(400).json({ error: 'recipient_id or user_id required' });
+      return;
+    }
 
     if (targetId === callerId) {
       res.status(400).json({ error: 'Cannot DM yourself' });
@@ -45,7 +54,10 @@ dmRouter.post(
     }
 
     // Verify target user exists
-    const target = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+    const target = db.prepare('SELECT id, username, display_name, avatar FROM users WHERE id = ?').get(targetId) as {
+      id: string; username: string; display_name: string | null; avatar: string | null;
+    } | undefined;
+
     if (!target) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -69,7 +81,17 @@ dmRouter.post(
     `).get(callerId, targetId) as Channel | undefined;
 
     if (existing) {
-      res.json(existing);
+      // Fetch the last message
+      const lastMsg = db.prepare(`
+        SELECT content FROM messages WHERE channel_id = ? ORDER BY id DESC LIMIT 1
+      `).get(existing.id) as { content: string } | undefined;
+
+      res.json({
+        id: existing.id,
+        recipient: target,
+        last_message: lastMsg ? lastMsg.content : null,
+        unread: 0
+      });
       return;
     }
 
@@ -79,7 +101,7 @@ dmRouter.post(
     const createDm = db.transaction(() => {
       db.prepare(
         `INSERT INTO channels (id, space_id, name, type, position) VALUES (?, NULL, ?, 'dm', 0)`
-      ).run(channelId, channelId); // name = channelId (client resolves display name from participants)
+      ).run(channelId, channelId);
 
       db.prepare(
         'INSERT INTO dm_members (channel_id, user_id) VALUES (?, ?)'
@@ -93,33 +115,79 @@ dmRouter.post(
     createDm();
 
     // Subscribe both participants to the new DM channel in the WS gateway
-    // so they receive DM_MESSAGE_CREATE events immediately, even before
-    // the target user’s client re-fetches their DM list.
     subscribeToChannels(callerId, [channelId]);
     subscribeToChannels(targetId, [channelId]);
 
-    const channel = db.prepare(
-      'SELECT id, name, type, space_id, position, created_at FROM channels WHERE id = ?'
-    ).get(channelId) as Channel;
-
-    res.status(201).json(channel);
+    res.status(201).json({
+      id: channelId,
+      recipient: target,
+      last_message: null,
+      unread: 0
+    });
   }
 );
 
-// ─── GET /api/v1/dm ─────────────────────────────────────────────────────────────
-// Returns all DM channels the caller is a participant in, ordered by
-// most recently created.
+// ─── GET /api/v1/dm/:channelId ──────────────────────────────────────────────────
+// Returns a single DM channel including recipient details.
+dmRouter.get('/:channelId', (req: AuthRequest, res) => {
+  const { channelId } = req.params as { channelId: string };
 
+  const isMember = db.prepare(
+    'SELECT 1 FROM dm_members WHERE channel_id = ? AND user_id = ?'
+  ).get(channelId, req.userId);
+
+  if (!isMember) {
+    res.status(403).json({ error: 'Not a participant of this DM' });
+    return;
+  }
+
+  const recipient = db.prepare(`
+    SELECT u.id, u.username, u.display_name, u.avatar, u.status
+    FROM dm_members dm
+    INNER JOIN users u ON u.id = dm.user_id
+    WHERE dm.channel_id = ? AND dm.user_id != ?
+  `).get(channelId, req.userId) as { id: string; username: string; display_name: string | null; avatar: string | null; status: string } | undefined;
+
+  res.json({
+    id: channelId,
+    recipient: recipient ?? null,
+  });
+});
+
+// ─── GET /api/v1/dm ─────────────────────────────────────────────────────────────
+// Returns all DM channels the caller is a participant in, mapped to DMConversation format.
 dmRouter.get('/', (req: AuthRequest, res) => {
   const channels = db.prepare(`
-    SELECT c.id, c.name, c.type, c.space_id, c.position, c.created_at
+    SELECT c.id, c.created_at
     FROM channels c
     INNER JOIN dm_members dm ON dm.channel_id = c.id
     WHERE dm.user_id = ? AND c.type = 'dm'
     ORDER BY c.created_at DESC
-  `).all(req.userId) as Channel[];
+  `).all(req.userId) as { id: string; created_at: string }[];
 
-  res.json(channels);
+  const conversations = channels.map(chan => {
+    const recipient = db.prepare(`
+      SELECT u.id, u.username, u.display_name, u.avatar
+      FROM dm_members dm
+      INNER JOIN users u ON u.id = dm.user_id
+      WHERE dm.channel_id = ? AND dm.user_id != ?
+    `).get(chan.id, req.userId) as { id: string; username: string; display_name: string | null; avatar: string | null } | undefined;
+
+    const lastMsg = db.prepare(`
+      SELECT content FROM messages
+      WHERE channel_id = ?
+      ORDER BY id DESC LIMIT 1
+    `).get(chan.id) as { content: string } | undefined;
+
+    return {
+      id: chan.id,
+      recipient: recipient ?? { id: '', username: 'Unknown User', display_name: null, avatar: null },
+      last_message: lastMsg ? lastMsg.content : null,
+      unread: 0,
+    };
+  });
+
+  res.json(conversations);
 });
 
 // ─── GET /api/v1/dm/:channelId/messages ────────────────────────────────────────
@@ -195,6 +263,24 @@ dmRouter.post(
     // DM_MESSAGE_CREATE is a distinct opcode from MESSAGE_CREATE.
     // The web client listens for both but routes them to different UI panels.
     broadcast(channelId, { op: WSOp.DM_MESSAGE_CREATE, d: { message } });
+
+    // Send push notification asynchronously to the other participant
+    const otherParticipant = db.prepare(`
+      SELECT user_id FROM dm_members
+      WHERE channel_id = ? AND user_id != ?
+    `).get(channelId, req.userId) as { user_id: string } | undefined;
+
+    if (otherParticipant) {
+      import('../utils/push.js')
+        .then(({ sendPushNotification }) => {
+          sendPushNotification([otherParticipant.user_id], {
+            title: `DM from ${message.author_username}`,
+            body: content.trim(),
+            data: { channelId }
+          });
+        })
+        .catch(console.error);
+    }
 
     res.status(201).json(message);
   }
