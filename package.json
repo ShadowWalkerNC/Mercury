@@ -7,7 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "prebuild": "npm run build --workspace=packages/shared",
+    "build": "npm run build --workspace=packages/server && npm run build --workspace=packages/web",
     "dev": "npm run dev --workspace=packages/server & npm run dev --workspace=packages/web",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
