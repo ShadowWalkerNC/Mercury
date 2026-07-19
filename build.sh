@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
 set -e
 
-# Add root node_modules/.bin to PATH so tsc and vite resolve correctly
-export PATH="$PWD/node_modules/.bin:$PATH"
+ROOT="$PWD"
+export PATH="$ROOT/node_modules/.bin:$PATH"
 
 echo "--- building @mercury/shared ---"
-cd packages/shared
-tsc
-cd ../..
+tsc --project "$ROOT/packages/shared/tsconfig.json"
 
 echo "--- building @mercury/server ---"
-cd packages/server
-tsc
-cd ../..
+tsc --project "$ROOT/packages/server/tsconfig.json"
 
 echo "--- building @mercury/web ---"
-cd packages/web
+cd "$ROOT/packages/web"
 vite build
-cd ../..
+cd "$ROOT"
 
 echo "--- build complete ---"
