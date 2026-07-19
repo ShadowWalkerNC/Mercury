@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build --workspace=@mercury/shared && npm run build --workspace=@mercury/server && npm run build --workspace=@mercury/web",
+  "buildCommand": "bash build.sh",
   "outputDirectory": "packages/web/dist",
   "installCommand": "npm install"
 }
