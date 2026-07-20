@@ -1,0 +1,5 @@
+{
+  "buildCommand": "export PATH=\"$PWD/node_modules/.bin:$PATH\" && tsc --project packages/shared/tsconfig.json && tsc --project packages/server/tsconfig.json && cd packages/web && vite build",
+  "outputDirectory": "packages/web/dist",
+  "installCommand": "npm install"
+}
