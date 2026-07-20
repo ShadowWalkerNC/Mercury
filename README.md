@@ -1029,19 +1029,19 @@ Mercury v1.0.0 ships when every box is checked.
 
 **Core**
 - [x] Register, login, persistent sessions across browser restarts
-- [ ] TOTP 2FA — enroll, use at login, disable by user, revoke by admin
-- [ ] Create a space, create channels, invite another user via code
-- [ ] Two tabs in the same channel see each other's messages in real time
-- [ ] Message edit and delete propagate via WebSocket
-- [ ] Emoji reactions — add, remove, live update
-- [ ] File and image uploads — inline preview, progress bar, persists across restarts
-- [ ] Direct messages between users
-- [ ] Voice channel connects via LiveKit
-- [ ] Typing indicator fires and clears correctly
-- [ ] Presence shows online / offline correctly
-- [ ] Message history cursor-paginated on channel select
-- [ ] Full-text search returns relevant results
-- [ ] Browser push notifications — permission prompt, receive while backgrounded
+- [x] TOTP 2FA — enroll, use at login, disable by user, revoke by admin
+- [x] Create a space, create channels, invite another user via code
+- [x] Two tabs in the same channel see each other's messages in real time
+- [x] Message edit and delete propagate via WebSocket
+- [x] Reaction badges (pure SVG icons and typography; zero raw emojis) — add, remove, live update
+- [x] File and image uploads — inline preview, progress bar, persists across restarts
+- [x] Direct messages between users
+- [x] Voice channel connects via LiveKit
+- [x] Typing indicator fires and clears correctly
+- [x] Presence shows online / offline correctly
+- [x] Message history cursor-paginated on channel select
+- [x] Full-text search returns relevant results
+- [x] Browser push notifications — permission prompt, receive while backgrounded
 - [x] Admin UI — ban users, manage spaces, revoke 2FA, view stats
 
 **Quality**
@@ -1084,6 +1084,28 @@ npm run dev
 cp .env.example .env   # fill all values
 docker-compose up -d
 ```
+
+### Cloud & Serverless Deployment Constraints
+
+> [!WARNING]
+> **Do NOT deploy the Backend (`@mercury/server` or API) to Vercel or Netlify.**
+> Vercel and Netlify use ephemeral, stateless Serverless Functions (AWS Lambda). They are **not compatible** with the Mercury backend due to:
+> 1. **WebSockets (Stateful Connections)**: The gateway requires a persistent TCP connection to coordinate real-time updates. Serverless functions spin down after 10–60 seconds, which disconnects WebSocket clients.
+> 2. **Local SQLite storage**: `better-sqlite3` writes to a local SQLite file (`./data/mercury.db`). Ephemeral file systems discard this database whenever containers scale down or deploy.
+> 3. **Monorepo Build**: Monorepo workspace linking (`@mercury/shared`) can cause compilation issues on standard single-target hosts.
+
+#### Recommended Architecture:
+
+* **Frontend Web Client (`packages/web`)**: 
+  * Can be hosted on **Vercel, Netlify, or Cloudflare Pages** as a static single-page app (SPA).
+  * Root directory: `packages/web`
+  * Build command: `npm run build`
+  * Output directory: `dist`
+  * Environment variable: `VITE_API_URL` pointing to your hosted API server, and `VITE_WS_URL` pointing to your hosted WebSocket gateway.
+
+* **Backend API & Gateway (`packages/server` & `@mercury/shared`)**:
+  * Host on **Railway, Render, Fly.io**, or any standard Virtual Private Server (VPS) (e.g. DigitalOcean, Hetzner).
+  * **Requirements**: Enable a **Persistent Disk/Volume** (e.g., 1GB mounted at `/app/packages/server/data` or wherever the server database resides) and point the `DB_PATH` there to prevent database loss on container restarts. Ensure ports are exposed for both HTTPS and WebSocket connections.
 
 ### Production (bare metal)
 
