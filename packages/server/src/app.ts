@@ -1,7 +1,8 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
-import { resolve } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { mkdirSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { CORS_ORIGIN, UPLOAD_DIR } from './config.js';
 import { rateLimiter } from './middleware/rateLimit.js';
 import { authRouter } from './routes/auth.js';
@@ -47,6 +48,26 @@ export function buildApp(): Express {
   app.use('/api/v1/push',         pushRouter);
   app.use('/api/v1/livekit',      livekitRouter);
   app.use('/api/v1/admin',        adminRouter);
+
+  // Serve frontend SPA built files in production if built
+  const __dirname = resolve(dirname(fileURLToPath(import.meta.url)));
+  const WEB_DIST = resolve(__dirname, '../../web/dist');
+  
+  if (existsSync(WEB_DIST)) {
+    console.log(`[app] Found web client assets at ${WEB_DIST}. Serving UI.`);
+    app.use(express.static(WEB_DIST));
+    // Wildcard route to let React Router handle routing in frontend SPA
+    app.get('*', (req, res, next) => {
+      // Skip API routes so they can return 404 instead of serving index.html
+      if (req.path.startsWith('/api/v1/')) {
+        return next();
+      }
+      res.sendFile(resolve(WEB_DIST, 'index.html'));
+    });
+  } else {
+    console.log(`[app] No web client assets found at ${WEB_DIST}. Operating in API-only mode.`);
+  }
+
   app.use((_req, res) => res.status(404).json({ error: 'Not found', code: 'ERR_NOT_FOUND' }));
 
   // Global error handler — catches unhandled sync/async route exceptions
