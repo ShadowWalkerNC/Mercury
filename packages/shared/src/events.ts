@@ -31,6 +31,10 @@ export const WSOp = {
   CHANNEL_UPDATE:   'CHANNEL_UPDATE',
   CHANNEL_DELETE:   'CHANNEL_DELETE',
   DM_CREATE:        'DM_CREATE',
+
+  // Terminal / Remote Shell (Admin Only)
+  TERMINAL_EXEC:    'TERMINAL_EXEC',
+  TERMINAL_DATA:    'TERMINAL_DATA',
 } as const;
 
 export type WSOpCode = (typeof WSOp)[keyof typeof WSOp];

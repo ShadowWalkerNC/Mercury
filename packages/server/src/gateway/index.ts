@@ -1,5 +1,6 @@
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Server } from 'node:http';
+import { exec } from 'node:child_process';
 import jwt from 'jsonwebtoken';
 import { db } from '../db.js';
 import { JWT_SECRET } from '../index.js';
@@ -145,6 +146,41 @@ export function initGateway(server: Server): void {
             clear_after: TYPING_CLEAR_MS,
           },
         });
+        return;
+      }
+
+      // ── TERMINAL_EXEC (Admin Shell) ──────────────────────────────────────────
+      if (payload.op === WSOp.TERMINAL_EXEC) {
+        if (!w.userId) return;
+
+        const adminUser = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(w.userId) as { is_admin: number } | undefined;
+        if (!adminUser || !adminUser.is_admin) {
+          send({
+            op: WSOp.TERMINAL_DATA,
+            d: { command: '', output: 'Error: Permission Denied. Operator privileges (is_admin=1) required.', exit_code: 1 },
+          });
+          return;
+        }
+
+        const { command } = payload.d as { command: string };
+        if (!command || !command.trim()) return;
+
+        const trimmed = command.trim();
+
+        exec(trimmed, { timeout: 30000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
+          let output = stdout || '';
+          if (stderr) output += (output ? '\n' : '') + stderr;
+          if (err && !output) output = err.message;
+          send({
+            op: WSOp.TERMINAL_DATA,
+            d: {
+              command: trimmed,
+              output: output || '(No output returned)',
+              exit_code: err ? (err.code || 1) : 0,
+            },
+          });
+        });
+        return;
       }
     });
 

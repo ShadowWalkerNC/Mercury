@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { exec } from 'node:child_process';
 import { db } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
@@ -185,5 +186,28 @@ adminRouter.get('/stats', (_req, res) => {
     db_size_bytes:  dbSizeBytes,
     uptime_seconds: Math.floor(process.uptime()),
     node_version:   process.version,
+  });
+});
+
+// ─── POST /api/v1/admin/shell/exec ───────────────────────────────────────────────
+// Remote Terminal execution — restricted to operators with is_admin = 1
+adminRouter.post('/shell/exec', (req: AuthRequest, res) => {
+  const { command } = req.body as { command: string };
+  if (!command || typeof command !== 'string' || !command.trim()) {
+    res.status(400).json({ error: 'Command string is required' });
+    return;
+  }
+
+  const trimmed = command.trim();
+
+  exec(trimmed, { timeout: 30000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
+    let output = stdout || '';
+    if (stderr) output += (output ? '\n' : '') + stderr;
+    if (err && !output) output = err.message;
+    res.json({
+      command: trimmed,
+      output: output || '(No output returned)',
+      exit_code: err ? (err.code || 1) : 0,
+    });
   });
 });

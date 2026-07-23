@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { TerminalPanel } from './TerminalPanel';
 
 interface AdminStats {
   users: number;
@@ -33,7 +34,7 @@ export function AdminShell() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'stats' | 'users'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'terminal'>('stats');
   const [actionBusy, setActionBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -112,9 +113,16 @@ export function AdminShell() {
         >
           User Manager ({users.length})
         </button>
+        <button
+          onClick={() => setActiveTab('terminal')}
+          style={{ ...css.tab, ...(activeTab === 'terminal' ? css.activeTab : {}) }}
+        >
+          &gt;_ Remote Shell
+        </button>
       </div>
 
       <main style={css.main}>
+        {activeTab === 'terminal' && <TerminalPanel />}
         {activeTab === 'stats' && stats && (
           <div style={css.grid}>
             {/* Stats Cards */}

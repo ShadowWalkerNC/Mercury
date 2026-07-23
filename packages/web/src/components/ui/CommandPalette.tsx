@@ -63,6 +63,13 @@ export function CommandPalette() {
         closeCommandBar();
       },
     },
+    {
+      id:       'cmd:admin_shell',
+      icon:     '>_',
+      label:    'Open Remote Shell (Admin)',
+      sublabel: 'Operator Command',
+      action:   () => { window.location.href = '/admin'; closeCommandBar(); },
+    },
   ], [spaces]);
 
   // Fuzzy filter
